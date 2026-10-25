@@ -1,0 +1,10 @@
+{
+  "name": "fruit-box-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "교실용 사과 게임(Fruit Box) + 교사 대시보드",
+  "scripts": {
+    "build": "node scripts/gen-firebase-config.js",
+    "start": "python3 -m http.server 8000"
+  }
+}
