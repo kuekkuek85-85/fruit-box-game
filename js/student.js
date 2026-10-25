@@ -38,7 +38,6 @@
       if (last) {
         $('studentNo').value = last.student_no || '';
         $('studentName').value = last.name || '';
-        if (last.mode) $('mode').value = last.mode;
         if (last.duration) $('duration').value = String(last.duration);
       }
     } catch (e) {}
@@ -87,24 +86,30 @@
     });
   }
 
+  // 오늘 날짜 기반 시드. 날짜가 바뀌면 보드도 바뀐다.
+  // YYYY*10000 + MM*100 + DD 로 계산해 날짜별로 고유하다(자리 올림 충돌 방지).
+  function dailySeed() {
+    var d = new Date();
+    return (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) >>> 0;
+  }
+
+  // 공통 보드 시드: 교사가 대시보드에서 특정 번호를 지정했으면 그 값,
+  // 아니면 오늘 날짜 기반(기본). 전원이 같은 보드를 풀어 공정 비교한다.
   function commonSeed() {
     var saved = localStorage.getItem(COMMON_SEED_KEY);
     if (saved) return parseInt(saved, 10) >>> 0;
-    // 지정값이 없으면 오늘 날짜 기반(참고 서비스의 '일일 도전'을 교실용으로)
-    var d = new Date();
-    return parseInt('' + d.getFullYear() + (d.getMonth() + 1) + d.getDate(), 10) >>> 0;
+    return dailySeed();
   }
 
   function startGame() {
     var id = validateIdentity();
     if (!id) return;
-    var mode = $('mode').value;
     var duration = parseInt($('duration').value, 10);
-    current = { student_no: id.no, name: id.name, mode: mode, duration: duration };
+    current = { student_no: id.no, name: id.name, duration: duration };
 
     // 공용 기기 대응: 직전 입력값 기억
     try { localStorage.setItem(LAST_KEY, JSON.stringify({
-      student_no: id.no, name: id.name, mode: mode, duration: duration
+      student_no: id.no, name: id.name, duration: duration
     })); } catch (e) {}
 
     $('whoName').textContent = id.name;
@@ -127,9 +132,9 @@
         $('hintLeft').textContent = left;
         $('btnHint').disabled = left <= 0;
       },
-      onEnd: finishGame
+      onEnd: finishGame,
+      seed: commonSeed() // 항상 공통 보드(오늘의 보드)
     };
-    if (mode === 'common') opts.seed = commonSeed();
 
     if (game) game.stop();
     game = new FruitBoxGame($('board'), opts);
@@ -148,16 +153,13 @@
   $('btnHint').addEventListener('click', function () {
     if (game && !game.useHint()) {
       // 유효한 수가 없으면 사용자에게 알림
-      if (game.findValidRect() === null) alert('지금 지울 수 있는 조합이 없어요. 새 보드를 눌러보세요!');
+      if (game.findValidRect() === null) alert('지금 지울 수 있는 조합이 없어요.');
     }
   });
   $('btnPause').addEventListener('click', function () {
     if (!game) return;
     var paused = game.pause();
     $('btnPause').textContent = paused ? '▶ 재개' : '⏸ 일시정지';
-  });
-  $('btnNew').addEventListener('click', function () {
-    if (game && confirm('새 보드로 바꿀까요? (점수는 유지됩니다)')) game.newBoard();
   });
   $('btnQuit').addEventListener('click', function () {
     if (game && confirm('게임을 종료하고 결과를 제출할까요?')) game._end(false);
@@ -201,7 +203,7 @@
       name: current.name,
       score: result.score,
       duration_sec: result.duration,
-      mode: current.mode === 'common' ? '공통 보드' : '클래식',
+      mode: '공통 보드',
       played_at: new Date().toISOString(),
       session: localStorage.getItem('fruitbox.session') || ''
     };

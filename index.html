@@ -30,19 +30,14 @@
           <div class="err" id="errName"></div>
         </div>
         <div class="field">
-          <label for="mode">모드</label>
-          <div class="mode-row">
-            <select id="mode">
-              <option value="classic">클래식 (매번 새 보드)</option>
-              <option value="common">공통 보드 (수업용)</option>
-            </select>
-            <select id="duration">
-              <option value="90">90초</option>
-              <option value="120" selected>120초</option>
-              <option value="180">180초</option>
-            </select>
-          </div>
+          <label for="duration">제한 시간</label>
+          <select id="duration">
+            <option value="90">90초</option>
+            <option value="120" selected>120초</option>
+            <option value="180">180초</option>
+          </select>
         </div>
+        <p class="sub" style="margin:0 0 16px;">오늘의 공통 보드로 진행합니다. 날짜가 바뀌면 보드도 바뀌어요.</p>
         <button class="primary" id="btnStart">시작하기</button>
         <p class="backend-note" id="backendNote"></p>
       </div>
@@ -60,7 +55,6 @@
       <div class="controls">
         <button id="btnHint">💡 힌트 (<span id="hintLeft">2</span>)</button>
         <button id="btnPause">⏸ 일시정지</button>
-        <button id="btnNew">🔄 새 보드</button>
         <span class="spacer"></span>
         <button id="btnSound">🔊 효과음</button>
         <button id="btnSoft">🎨 연한 색상</button>
