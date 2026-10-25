@@ -6,7 +6,7 @@
 
   var LAST_KEY = 'fruitbox.lastStudent';
   var SETTINGS_KEY = 'fruitbox.settings';
-  var COMMON_SEED_KEY = 'fruitbox.commonSeed'; // 교사가 대시보드에서 지정 가능
+  var DURATION = 180; // 타임어택: 제한 시간 180초 고정
 
   var $ = function (id) { return document.getElementById(id); };
   var screens = {
@@ -38,7 +38,6 @@
       if (last) {
         $('studentNo').value = last.student_no || '';
         $('studentName').value = last.name || '';
-        if (last.duration) $('duration').value = String(last.duration);
       }
     } catch (e) {}
   })();
@@ -49,8 +48,10 @@
       : '저장소: 이 기기 (localStorage) — 다른 기기 기록은 합쳐지지 않습니다';
   });
 
-  var current = null; // { student_no, name, mode, duration }
+  var current = null; // { student_no, name }
   var game = null;
+
+  function fmtSec(s) { return (Math.round(s * 10) / 10) + ''; }
 
   function validateIdentity() {
     var no = $('studentNo').value.trim();
@@ -72,55 +73,40 @@
     return ok ? { no: no, name: name } : null;
   }
 
-  function bestScoreFor(studentNo) {
+  // 타임어택 개인 기록: 완전 클리어한 적이 있으면 그 최단 소요시간(초),
+  // 없으면 null. 조회 실패 시 null 로 폴백해 저장 경로를 막지 않는다.
+  function bestClearTimeFor(studentNo) {
     return Storage.getAllRecords().then(function (records) {
-      var best = 0;
+      var best = null;
       records.forEach(function (r) {
-        if (r.student_no === studentNo && r.score > best) best = r.score;
+        if (r.student_no === studentNo && r.cleared &&
+            (best === null || r.duration_sec < best)) {
+          best = r.duration_sec;
+        }
       });
       return best;
-    }).catch(function () {
-      // 최고기록 조회 실패(네트워크·권한 등)가 결과 저장을 막으면 안 된다.
-      // 0 으로 폴백해 saveWithRetry 경로(및 재저장 버튼)를 항상 보장한다.
-      return 0;
-    });
-  }
-
-  // 오늘 날짜 기반 시드. 날짜가 바뀌면 보드도 바뀐다.
-  // YYYY*10000 + MM*100 + DD 로 계산해 날짜별로 고유하다(자리 올림 충돌 방지).
-  function dailySeed() {
-    var d = new Date();
-    return (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) >>> 0;
-  }
-
-  // 공통 보드 시드: 교사가 대시보드에서 특정 번호를 지정했으면 그 값,
-  // 아니면 오늘 날짜 기반(기본). 전원이 같은 보드를 풀어 공정 비교한다.
-  function commonSeed() {
-    var saved = localStorage.getItem(COMMON_SEED_KEY);
-    if (saved) return parseInt(saved, 10) >>> 0;
-    return dailySeed();
+    }).catch(function () { return null; });
   }
 
   function startGame() {
     var id = validateIdentity();
     if (!id) return;
-    var duration = parseInt($('duration').value, 10);
-    current = { student_no: id.no, name: id.name, duration: duration };
+    current = { student_no: id.no, name: id.name };
 
     // 공용 기기 대응: 직전 입력값 기억
     try { localStorage.setItem(LAST_KEY, JSON.stringify({
-      student_no: id.no, name: id.name, duration: duration
+      student_no: id.no, name: id.name
     })); } catch (e) {}
 
     $('whoName').textContent = id.name;
     $('whoNo').textContent = id.no;
 
-    bestScoreFor(id.no).then(function (best) {
-      $('best').textContent = best;
+    bestClearTimeFor(id.no).then(function (t) {
+      $('best').textContent = t === null ? '—' : fmtSec(t) + '초';
     });
 
     var opts = {
-      duration: duration,
+      duration: DURATION,
       soundOn: settings.sound !== false,
       hintLimit: 2,
       onScore: function (s) { $('score').textContent = s; },
@@ -132,8 +118,8 @@
         $('hintLeft').textContent = left;
         $('btnHint').disabled = left <= 0;
       },
-      onEnd: finishGame,
-      seed: commonSeed() // 항상 공통 보드(오늘의 보드)
+      onEnd: finishGame
+      // 시드 미지정 → 매판 랜덤 보드(구성형 생성기로 항상 완전 클리어 가능)
     };
 
     if (game) game.stop();
@@ -194,8 +180,10 @@
 
   function finishGame(result) {
     show('result');
-    $('finalScore').textContent = result.score;
-    $('finalDuration').textContent = result.duration;
+    var cleared = !!result.perfect; // 보드를 전부 지웠는지
+    $('finalLabel').textContent = cleared ? '클리어 시간(초)' : '시간 종료 · 점수';
+    $('finalScore').textContent = cleared ? fmtSec(result.duration) : result.score;
+    $('finalDuration').textContent = fmtSec(result.duration);
 
     var record = {
       id: Storage.newId(),
@@ -203,12 +191,13 @@
       name: current.name,
       score: result.score,
       duration_sec: result.duration,
-      mode: '공통 보드',
+      cleared: cleared,
+      mode: '타임어택',
       played_at: new Date().toISOString(),
       session: localStorage.getItem('fruitbox.session') || ''
     };
 
-    bestScoreFor(current.student_no).then(function (prevBest) {
+    bestClearTimeFor(current.student_no).then(function (prevBest) {
       var note = $('savingNote');
       note.className = 'saving';
       note.textContent = '기록 저장 중…';
@@ -216,18 +205,20 @@
       saveWithRetry(record).then(function () {
         note.className = 'saving ok';
         note.textContent = '기록이 저장되었습니다.';
-        var newBest = Math.max(prevBest, result.score);
-        $('finalBest').textContent = newBest;
+        var newBest = cleared
+          ? (prevBest === null ? result.duration : Math.min(prevBest, result.duration))
+          : prevBest;
+        $('finalBest').textContent = newBest === null ? '—' : fmtSec(newBest);
         var fb = $('feedback');
-        if (result.perfect) {
+        if (cleared && (prevBest === null || result.duration < prevBest)) {
           fb.className = 'fb record';
-          fb.textContent = '🎉 퍼펙트 클리어! 모든 사과를 지웠어요!';
-        } else if (result.score > prevBest) {
+          fb.textContent = '🏆 최단 기록 경신! ' + fmtSec(result.duration) + '초 만에 전부 지웠어요!';
+        } else if (cleared) {
           fb.className = 'fb record';
-          fb.textContent = '🏆 최고 기록 경신! (이전 ' + prevBest + '점)';
+          fb.textContent = '🎉 클리어! ' + fmtSec(result.duration) + '초 (최단 기록 ' + fmtSec(newBest) + '초)';
         } else {
           fb.className = 'fb';
-          fb.textContent = '수고했어요! 최고 기록은 ' + newBest + '점이에요.';
+          fb.textContent = '시간 종료! ' + result.score + '점까지 지웠어요. 전부 지우면 기록이 남아요.';
         }
       }).catch(function (err) {
         console.error('기록 저장 실패:', err);
@@ -253,7 +244,6 @@
           });
           note.parentNode.appendChild(b);
         }
-        $('finalBest').textContent = Math.max(prevBest, result.score);
       });
     });
   }
