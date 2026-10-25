@@ -53,6 +53,7 @@
     this.paused = false;
     this._timer = null;
     this._startTs = null;
+    this._history = []; // 되돌리기용 스냅샷 스택
 
     // 드래그 상태
     this._dragging = false;
@@ -242,6 +243,8 @@
   };
 
   FruitBoxGame.prototype._applyClear = function (rect) {
+    // 되돌리기용으로 지우기 직전 상태를 저장
+    this._history.push({ values: this.values.slice(), score: this.score });
     var count = 0;
     for (var r = rect.r0; r <= rect.r1; r++) {
       for (var c = rect.c0; c <= rect.c1; c++) {
@@ -326,6 +329,22 @@
     return true;
   };
 
+  // 되돌리기: 직전에 지운 상태로 복원(막혔을 때 다른 순서로 재시도).
+  FruitBoxGame.prototype.undo = function () {
+    if (!this.running || this.paused || !this._history.length) return false;
+    var snap = this._history.pop();
+    this.values = snap.values;
+    this.score = snap.score;
+    this._clearSelectionClasses();
+    this._renderValues();
+    this.onScore(this.score);
+    return true;
+  };
+
+  FruitBoxGame.prototype.canUndo = function () {
+    return this.running && !this.paused && this._history.length > 0;
+  };
+
   FruitBoxGame.prototype.newBoard = function () {
     this.values = this._generateBoard();
     this._renderValues();
@@ -338,6 +357,7 @@
     this.score = 0;
     this.remaining = this.duration;
     this.hintsLeft = this.hintLimit;
+    this._history = [];
     this.running = true;
     this.paused = false;
     this._startTs = Date.now();

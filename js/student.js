@@ -109,7 +109,10 @@
       duration: DURATION,
       soundOn: settings.sound !== false,
       hintLimit: 2,
-      onScore: function (s) { $('score').textContent = s; },
+      onScore: function (s) {
+        $('score').textContent = s;
+        $('btnUndo').disabled = !(game && game.canUndo());
+      },
       onTime: function (t) {
         $('timer').textContent = Math.max(0, t);
         $('timerStat').classList.toggle('warn', t <= 10);
@@ -141,6 +144,9 @@
       // 유효한 수가 없으면 사용자에게 알림
       if (game.findValidRect() === null) alert('지금 지울 수 있는 조합이 없어요.');
     }
+  });
+  $('btnUndo').addEventListener('click', function () {
+    if (game) game.undo();
   });
   $('btnPause').addEventListener('click', function () {
     if (!game) return;
