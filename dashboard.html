@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>교사 대시보드 — 사과 게임</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <script src="js/firebase-config.js" onerror="console.info('firebase-config.js 없음 — 로컬 저장 사용')"></script>
+  <script src="js/storage.js"></script>
+
+  <div class="wrap">
+    <!-- 비밀번호 게이트 -->
+    <section id="gate" class="screen active">
+      <div class="gate card">
+        <h1>🔒 교사 대시보드</h1>
+        <p class="sub">접근 비밀번호를 입력하세요.</p>
+        <input id="gatePw" type="password" placeholder="비밀번호" autocomplete="off">
+        <div class="err" id="gateErr"></div>
+        <button class="primary" id="gateBtn">입장</button>
+      </div>
+    </section>
+
+    <!-- 대시보드 -->
+    <section id="dash" class="screen">
+      <div class="dash-head">
+        <h1>📊 교사 대시보드</h1>
+        <span id="dashBackend" class="missing"></span>
+        <span class="spacer"></span>
+        <button id="btnCommonSeed">공통 보드 설정</button>
+        <button id="btnCsv">CSV 내보내기</button>
+        <button id="btnReset">기록 초기화</button>
+      </div>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="filters">
+        <input id="search" placeholder="학번·성명 검색" style="flex:1; min-width:160px;">
+        <select id="filterGrade"><option value="">전체 학년</option></select>
+        <select id="filterClass"><option value="">전체 반</option></select>
+        <span class="missing" id="rowCount"></span>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <p class="section-title">학생별 기록</p>
+          <div style="overflow-x:auto;">
+            <table id="recordTable">
+              <thead>
+                <tr>
+                  <th data-sort="student_no">학번 <span class="arrow"></span></th>
+                  <th data-sort="name">성명 <span class="arrow"></span></th>
+                  <th data-sort="classKey">학년·반·번호 <span class="arrow"></span></th>
+                  <th data-sort="best" class="num">최고 <span class="arrow"></span></th>
+                  <th data-sort="plays" class="num">횟수 <span class="arrow"></span></th>
+                  <th data-sort="last">최근 플레이 <span class="arrow"></span></th>
+                </tr>
+              </thead>
+              <tbody id="recordBody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="tableEmpty" style="display:none;">아직 기록이 없습니다.</div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <p class="section-title">🏆 실시간 순위 (동점 시 빠른 순)</p>
+            <ol class="rank-list" id="rankList"></ol>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <p class="section-title">반별 집계</p>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>학년·반</th><th class="num">평균</th><th class="num">최고</th><th class="num">참여</th></tr></thead>
+                <tbody id="classBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <p class="section-title">점수 분포</p>
+            <div class="dist" id="dist"></div>
+            <div class="dist-labels" id="distLabels"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

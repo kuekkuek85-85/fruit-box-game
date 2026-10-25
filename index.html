@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>사과 게임 — 합이 10</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Firebase 를 쓰려면 firebase-config.js 를 만들어 window.FIREBASE_CONFIG 를 설정하세요.
+       파일이 없으면 자동으로 localStorage(이 기기)에만 저장됩니다. -->
+  <script src="js/firebase-config.js" onerror="console.info('firebase-config.js 없음 — 로컬 저장 사용')"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/game.js"></script>
+
+  <div class="wrap">
+    <!-- 1) 식별 화면 -->
+    <section id="screen-identify" class="screen active">
+      <div class="identify card">
+        <h1>🍎 사과 게임</h1>
+        <p class="sub">합이 <b>10</b>이 되도록 사과를 드래그해 지우세요.</p>
+        <div class="field">
+          <label for="studentNo">학번 (5자리)</label>
+          <input id="studentNo" inputmode="numeric" maxlength="5" placeholder="예: 10203" autocomplete="off">
+          <div class="err" id="errNo"></div>
+        </div>
+        <div class="field">
+          <label for="studentName">성명</label>
+          <input id="studentName" maxlength="10" placeholder="이름" autocomplete="off">
+          <div class="err" id="errName"></div>
+        </div>
+        <div class="field">
+          <label for="mode">모드</label>
+          <div class="mode-row">
+            <select id="mode">
+              <option value="classic">클래식 (매번 새 보드)</option>
+              <option value="common">공통 보드 (수업용)</option>
+            </select>
+            <select id="duration">
+              <option value="90">90초</option>
+              <option value="120" selected>120초</option>
+              <option value="180">180초</option>
+            </select>
+          </div>
+        </div>
+        <button class="primary" id="btnStart">시작하기</button>
+        <p class="backend-note" id="backendNote"></p>
+      </div>
+    </section>
+
+    <!-- 2) 게임 화면 -->
+    <section id="screen-game" class="screen">
+      <div class="topbar">
+        <div class="stat"><div class="k">점수</div><div class="v"><span id="score">0</span>/170</div></div>
+        <div class="stat timer" id="timerStat"><div class="k">남은 시간</div><div class="v" id="timer">120</div></div>
+        <div class="stat"><div class="k">최고 기록</div><div class="v" id="best">0</div></div>
+        <div class="who">플레이어<br><b id="whoName">—</b> · <span id="whoNo">—</span></div>
+      </div>
+      <div class="board-shell"><div class="board" id="board"></div></div>
+      <div class="controls">
+        <button id="btnHint">💡 힌트 (<span id="hintLeft">2</span>)</button>
+        <button id="btnPause">⏸ 일시정지</button>
+        <button id="btnNew">🔄 새 보드</button>
+        <span class="spacer"></span>
+        <button id="btnSound">🔊 효과음</button>
+        <button id="btnSoft">🎨 연한 색상</button>
+        <button id="btnQuit">⏹ 종료</button>
+      </div>
+    </section>
+
+    <!-- 3) 결과 화면 -->
+    <section id="screen-result" class="screen">
+      <div class="result card">
+        <div class="k">최종 점수</div>
+        <div class="big"><span id="finalScore">0</span></div>
+        <div class="fb" id="feedback"></div>
+        <div class="meta">
+          <div><div class="v" id="finalDuration">0</div><div class="k">소요 시간(초)</div></div>
+          <div><div class="v" id="finalBest">0</div><div class="k">최고 기록</div></div>
+        </div>
+        <button class="primary" id="btnAgain">다시 하기</button>
+        <button id="btnChange">다른 학생으로</button>
+        <div class="saving" id="savingNote"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/student.js"></script>
+</body>
+</html>
