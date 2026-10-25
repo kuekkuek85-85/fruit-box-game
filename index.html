@@ -17,8 +17,8 @@
     <!-- 1) 식별 화면 -->
     <section id="screen-identify" class="screen active">
       <div class="identify card">
-        <h1>🍎 사과 게임 · 타임어택</h1>
-        <p class="sub">합이 <b>10</b>이 되도록 드래그해 지우세요. <b>180초</b> 안에 <b>전부</b> 지우고 기록을 노려보세요!</p>
+        <h1>🍎 사과 게임 · 3단계 타임어택</h1>
+        <p class="sub">합이 <b>10</b>이 되도록 드래그해 지우세요. <b>1단계 2개 · 2단계 3개 · 3단계 4개</b>를 묶어 전부 지우면 다음 단계로! (각 단계 180초)</p>
         <div class="field">
           <label for="studentNo">학번 (5자리)</label>
           <input id="studentNo" inputmode="numeric" maxlength="5" placeholder="예: 10203" autocomplete="off">
@@ -29,7 +29,7 @@
           <input id="studentName" maxlength="10" placeholder="이름" autocomplete="off">
           <div class="err" id="errName"></div>
         </div>
-        <p class="sub" style="margin:0 0 16px;">매번 새로운 보드가 랜덤으로 주어집니다. 제한 시간은 180초입니다.</p>
+        <p class="sub" style="margin:0 0 16px;">매 단계 새로운 보드가 랜덤으로 주어집니다. 단계마다 제한 시간은 180초입니다.</p>
         <button class="primary" id="btnStart">시작하기</button>
         <p class="backend-note" id="backendNote"></p>
       </div>
@@ -38,7 +38,8 @@
     <!-- 2) 게임 화면 -->
     <section id="screen-game" class="screen">
       <div class="topbar">
-        <div class="stat"><div class="k">점수</div><div class="v"><span id="score">0</span>/170</div></div>
+        <div class="stat"><div class="k">단계</div><div class="v"><span id="stage">1</span>/3</div></div>
+        <div class="stat"><div class="k">점수</div><div class="v"><span id="score">0</span>/<span id="scoreTotal">170</span></div></div>
         <div class="stat timer" id="timerStat"><div class="k">남은 시간</div><div class="v" id="timer">180</div></div>
         <div class="stat"><div class="k">최단 기록</div><div class="v" id="best">—</div></div>
         <div class="who">플레이어<br><b id="whoName">—</b> · <span id="whoNo">—</span></div>

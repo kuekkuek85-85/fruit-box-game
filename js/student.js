@@ -88,6 +88,18 @@
     }).catch(function () { return null; });
   }
 
+  // 3단계 구성: 단계별 보드 크기와 묶음 크기(합이 10인 칸 수)
+  var STAGES = [
+    { cols: 17, rows: 10, groupSize: 2 }, // 1단계: 2개
+    { cols: 18, rows: 10, groupSize: 3 }, // 2단계: 3개
+    { cols: 16, rows: 10, groupSize: 4 }  // 3단계: 4개
+  ];
+
+  // 한 판(run) 상태
+  var stageIndex = 0;
+  var runElapsed = 0; // 지금까지 단계들의 소요 시간 합(초)
+  var runScore = 0;   // 지금까지 지운 사과 수 합
+
   function startGame() {
     var id = validateIdentity();
     if (!id) return;
@@ -121,16 +133,44 @@
         $('hintLeft').textContent = left;
         $('btnHint').disabled = left <= 0;
       },
-      onEnd: finishGame
-      // 시드 미지정 → 매판 랜덤 보드(구성형 생성기로 항상 완전 클리어 가능)
+      onEnd: onStageEnd
+      // 시드 미지정 → 매 단계 랜덤 보드(구성형 생성기로 항상 완전 클리어 가능)
     };
 
     if (game) game.stop();
     game = new FruitBoxGame($('board'), opts);
-    game.start();
+
+    // 새 판 시작: 단계·누적값 초기화 후 1단계부터
+    stageIndex = 0;
+    runElapsed = 0;
+    runScore = 0;
+    startStage(0);
 
     syncSoundButton();
     show('game');
+  }
+
+  function startStage(i) {
+    var s = STAGES[i];
+    $('stage').textContent = i + 1;
+    $('scoreTotal').textContent = s.cols * s.rows;
+    game.configure(s.cols, s.rows, s.groupSize);
+    game.start();
+  }
+
+  // 각 단계 종료 처리. 단계를 전부 지웠으면(perfect) 다음 단계로,
+  // 마지막 단계까지 지웠으면 완전 클리어. 시간 초과면 판 종료.
+  function onStageEnd(result) {
+    runElapsed += result.duration;
+    runScore += result.score;
+
+    if (result.perfect && stageIndex < STAGES.length - 1) {
+      stageIndex++;
+      startStage(stageIndex);
+      return;
+    }
+    var cleared = result.perfect && stageIndex === STAGES.length - 1;
+    finishRun(cleared, runElapsed, runScore, stageIndex);
   }
 
   /* ------------------------------- 게임 컨트롤 ------------------------------- */
@@ -184,21 +224,22 @@
     });
   }
 
-  function finishGame(result) {
+  // 한 판(3단계) 종료 처리 및 기록 저장.
+  function finishRun(cleared, totalSec, totalScore, reachedIdx) {
     show('result');
-    var cleared = !!result.perfect; // 보드를 전부 지웠는지
-    $('finalLabel').textContent = cleared ? '클리어 시간(초)' : '시간 종료 · 점수';
-    $('finalScore').textContent = cleared ? fmtSec(result.duration) : result.score;
-    $('finalDuration').textContent = fmtSec(result.duration);
+    $('finalLabel').textContent = cleared ? '총 클리어 시간(초)' : '시간 종료 · 점수';
+    $('finalScore').textContent = cleared ? fmtSec(totalSec) : totalScore;
+    $('finalDuration').textContent = fmtSec(totalSec);
 
     var record = {
       id: Storage.newId(),
       student_no: current.student_no,
       name: current.name,
-      score: result.score,
-      duration_sec: result.duration,
+      score: totalScore,
+      duration_sec: totalSec,
       cleared: cleared,
-      mode: '타임어택',
+      stage: reachedIdx + 1, // 도달(마지막으로 플레이한) 단계
+      mode: '타임어택 3단계',
       played_at: new Date().toISOString(),
       session: localStorage.getItem('fruitbox.session') || ''
     };
@@ -212,19 +253,19 @@
         note.className = 'saving ok';
         note.textContent = '기록이 저장되었습니다.';
         var newBest = cleared
-          ? (prevBest === null ? result.duration : Math.min(prevBest, result.duration))
+          ? (prevBest === null ? totalSec : Math.min(prevBest, totalSec))
           : prevBest;
         $('finalBest').textContent = newBest === null ? '—' : fmtSec(newBest);
         var fb = $('feedback');
-        if (cleared && (prevBest === null || result.duration < prevBest)) {
+        if (cleared && (prevBest === null || totalSec < prevBest)) {
           fb.className = 'fb record';
-          fb.textContent = '🏆 최단 기록 경신! ' + fmtSec(result.duration) + '초 만에 전부 지웠어요!';
+          fb.textContent = '🏆 최단 기록 경신! 3단계를 ' + fmtSec(totalSec) + '초 만에 모두 클리어!';
         } else if (cleared) {
           fb.className = 'fb record';
-          fb.textContent = '🎉 클리어! ' + fmtSec(result.duration) + '초 (최단 기록 ' + fmtSec(newBest) + '초)';
+          fb.textContent = '🎉 3단계 모두 클리어! 총 ' + fmtSec(totalSec) + '초 (최단 기록 ' + fmtSec(newBest) + '초)';
         } else {
           fb.className = 'fb';
-          fb.textContent = '시간 종료! ' + result.score + '점까지 지웠어요. 전부 지우면 기록이 남아요.';
+          fb.textContent = (reachedIdx + 1) + '단계에서 시간 종료! 총 ' + totalScore + '개 지웠어요. 3단계까지 모두 지우면 기록이 남아요.';
         }
       }).catch(function (err) {
         console.error('기록 저장 실패:', err);
