@@ -28,7 +28,6 @@
         <h1>📊 교사 대시보드</h1>
         <span id="dashBackend" class="missing"></span>
         <span class="spacer"></span>
-        <button id="btnCommonSeed">공통 보드 설정</button>
         <button id="btnCsv">CSV 내보내기</button>
         <button id="btnReset">기록 초기화</button>
       </div>
@@ -52,7 +51,8 @@
                   <th data-sort="student_no">학번 <span class="arrow"></span></th>
                   <th data-sort="name">성명 <span class="arrow"></span></th>
                   <th data-sort="classKey">학년·반·번호 <span class="arrow"></span></th>
-                  <th data-sort="best" class="num">최고 <span class="arrow"></span></th>
+                  <th data-sort="clearTime" class="num">최단 클리어(초) <span class="arrow"></span></th>
+                  <th data-sort="best" class="num">최고 점수 <span class="arrow"></span></th>
                   <th data-sort="plays" class="num">횟수 <span class="arrow"></span></th>
                   <th data-sort="last">최근 플레이 <span class="arrow"></span></th>
                 </tr>
@@ -65,20 +65,20 @@
 
         <div>
           <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">🏆 실시간 순위 (동점 시 빠른 순)</p>
+            <p class="section-title">🏆 실시간 순위 (완전 클리어 최단 시간)</p>
             <ol class="rank-list" id="rankList"></ol>
           </div>
           <div class="card" style="margin-bottom:16px;">
             <p class="section-title">반별 집계</p>
             <div style="overflow-x:auto;">
               <table>
-                <thead><tr><th>학년·반</th><th class="num">평균</th><th class="num">최고</th><th class="num">참여</th></tr></thead>
+                <thead><tr><th>학년·반</th><th class="num">최단 클리어(초)</th><th class="num">클리어</th><th class="num">참여</th></tr></thead>
                 <tbody id="classBody"></tbody>
               </table>
             </div>
           </div>
           <div class="card">
-            <p class="section-title">점수 분포</p>
+            <p class="section-title">클리어 시간 분포(초)</p>
             <div class="dist" id="dist"></div>
             <div class="dist-labels" id="distLabels"></div>
           </div>

@@ -1,6 +1,6 @@
 /*
- * dashboard.js — 교사 대시보드
- * 학번·성명 기준 집계, 순위, 반별 통계, 분포, 필터·정렬·검색, CSV, 초기화.
+ * dashboard.js — 교사 대시보드 (타임어택)
+ * 학번·성명 기준 집계. 순위는 '완전 클리어 최단 시간' 기준.
  *
  * 비밀번호는 window.TEACHER_PASSWORD (firebase-config.js 에서 지정) 또는 기본값 'teacher'.
  * 주의: 클라이언트 측 게이트이므로 완전한 보안이 아니라 '학생 접근 차단' 용도입니다.
@@ -10,7 +10,8 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var PW = window.TEACHER_PASSWORD || 'teacher';
-  var COMMON_SEED_KEY = 'fruitbox.commonSeed';
+
+  function fmtSec(s) { return (Math.round(s * 10) / 10) + ''; }
 
   /* ------------------------------- 게이트 ------------------------------- */
   function enter() {
@@ -34,8 +35,8 @@
 
   /* ------------------------------- 상태 ------------------------------- */
   var records = [];
-  var sortKey = 'best';
-  var sortDir = -1; // -1 내림차순, 1 오름차순
+  var sortKey = 'clearTime';
+  var sortDir = 1; // 1 오름차순(빠른 순), -1 내림차순
 
   function init() {
     Storage.ready().then(function () {
@@ -50,13 +51,17 @@
     $('filterClass').addEventListener('change', render);
     $('btnCsv').addEventListener('click', exportCsv);
     $('btnReset').addEventListener('click', resetAll);
-    $('btnCommonSeed').addEventListener('click', setCommonSeed);
 
     document.querySelectorAll('th[data-sort]').forEach(function (th) {
       th.addEventListener('click', function () {
         var k = th.dataset.sort;
         if (sortKey === k) sortDir = -sortDir;
-        else { sortKey = k; sortDir = (k === 'name' || k === 'student_no' || k === 'classKey') ? 1 : -1; }
+        else {
+          sortKey = k;
+          // 클리어 시간은 빠른 순(오름차순)이 기본, 이름/학번/학급은 오름차순,
+          // 나머지(점수·횟수·최근)는 내림차순이 기본.
+          sortDir = (k === 'clearTime' || k === 'name' || k === 'student_no' || k === 'classKey') ? 1 : -1;
+        }
         render();
       });
     });
@@ -83,7 +88,9 @@
           name: r.name,
           grade: p.grade, classNo: p.classNo, number: p.number,
           classKey: p.grade * 100 + p.classNo,
-          best: 0, plays: 0, last: 0, bestDuration: Infinity
+          bestScore: 0, plays: 0, last: 0,
+          cleared: false,
+          bestClearTime: null // 완전 클리어 최단 시간(초), 없으면 null
         };
       }
       var s = map[key];
@@ -91,9 +98,12 @@
       s.plays += 1;
       var t = new Date(r.played_at).getTime() || 0;
       if (t > s.last) s.last = t;
-      if (r.score > s.best || (r.score === s.best && r.duration_sec < s.bestDuration)) {
-        s.best = r.score;
-        s.bestDuration = r.duration_sec;
+      if (r.score > s.bestScore) s.bestScore = r.score;
+      if (r.cleared) {
+        s.cleared = true;
+        if (s.bestClearTime === null || r.duration_sec < s.bestClearTime) {
+          s.bestClearTime = r.duration_sec;
+        }
       }
     });
     return Object.keys(map).map(function (k) { return map[k]; });
@@ -149,7 +159,7 @@
     var students = aggregateStudents(records);
     var filtered = applyFilters(students);
 
-    renderSummary(students, filtered);
+    renderSummary(students);
     renderTable(filtered);
     renderRank(filtered);
     renderClasses(filtered);
@@ -157,18 +167,18 @@
     updateSortArrows();
   }
 
-  function renderSummary(all, filtered) {
-    var totalPlays = records.length;
+  function renderSummary(all) {
     var participants = all.length;
-    var scores = [];
-    records.forEach(function (r) { scores.push(r.score); });
-    var avg = scores.length ? Math.round(scores.reduce(function (a, b) { return a + b; }, 0) / scores.length) : 0;
-    var max = scores.length ? Math.max.apply(null, scores) : 0;
+    var clearedStudents = all.filter(function (s) { return s.cleared; });
+    var fastest = null;
+    clearedStudents.forEach(function (s) {
+      if (fastest === null || s.bestClearTime < fastest) fastest = s.bestClearTime;
+    });
     $('summary').innerHTML =
       stat('참여 학생', participants + '명') +
-      stat('총 플레이', totalPlays + '회') +
-      stat('평균 점수', avg) +
-      stat('최고 점수', max);
+      stat('총 플레이', records.length + '회') +
+      stat('클리어 학생', clearedStudents.length + '명') +
+      stat('최단 클리어', fastest === null ? '—' : fmtSec(fastest) + '초');
   }
   function stat(k, v) {
     return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
@@ -186,17 +196,21 @@
         '<td>' + esc(s.student_no) + '</td>' +
         '<td>' + esc(s.name) + '</td>' +
         '<td>' + s.grade + '학년 ' + s.classNo + '반 ' + s.number + '번</td>' +
-        '<td class="num">' + s.best + '</td>' +
+        '<td class="num">' + (s.bestClearTime === null ? '—' : fmtSec(s.bestClearTime)) + '</td>' +
+        '<td class="num">' + s.bestScore + '</td>' +
         '<td class="num">' + s.plays + '</td>' +
         '<td>' + fmtTime(s.last) + '</td>';
       body.appendChild(tr);
     });
   }
 
+  function clearTimeOrInf(s) { return s.bestClearTime === null ? Infinity : s.bestClearTime; }
+
   function cmp(a, b) {
     var va, vb;
     if (sortKey === 'last') { va = a.last; vb = b.last; }
-    else if (sortKey === 'best') { va = a.best; vb = b.best; }
+    else if (sortKey === 'clearTime') { va = clearTimeOrInf(a); vb = clearTimeOrInf(b); }
+    else if (sortKey === 'best') { va = a.bestScore; vb = b.bestScore; }
     else if (sortKey === 'plays') { va = a.plays; vb = b.plays; }
     else if (sortKey === 'classKey') { va = a.classKey * 100 + a.number; vb = b.classKey * 100 + b.number; }
     else { va = a[sortKey]; vb = b[sortKey]; }
@@ -213,19 +227,25 @@
   }
 
   function renderRank(students) {
-    var top = students.slice().sort(function (a, b) {
-      if (b.best !== a.best) return b.best - a.best;
-      return a.bestDuration - b.bestDuration; // 동점 시 빠른 순
-    }).slice(0, 10);
+    // 완전 클리어한 학생을 최단 시간 순으로, 그 다음 미클리어 학생을 점수 순으로.
+    var cleared = students.filter(function (s) { return s.cleared; })
+      .sort(function (a, b) { return a.bestClearTime - b.bestClearTime; });
+    var notCleared = students.filter(function (s) { return !s.cleared; })
+      .sort(function (a, b) { return b.bestScore - a.bestScore; });
+    var top = cleared.concat(notCleared).slice(0, 10);
+
     var ol = $('rankList');
     ol.innerHTML = '';
     if (!top.length) { ol.innerHTML = '<li class="sub">아직 기록이 없습니다.</li>'; return; }
     top.forEach(function (s, i) {
+      var right = s.cleared
+        ? '<span class="sc">' + fmtSec(s.bestClearTime) + '초</span>'
+        : '<span class="sub">' + s.bestScore + '점 · 미완</span>';
       var li = document.createElement('li');
       li.innerHTML =
         '<span class="pos">' + (i + 1) + '</span>' +
         '<span class="nm">' + esc(s.name) + ' <span class="sub">' + esc(s.student_no) + '</span></span>' +
-        '<span class="sc">' + s.best + '</span>';
+        right;
       ol.appendChild(li);
     });
   }
@@ -234,10 +254,12 @@
     var map = {};
     students.forEach(function (s) {
       var key = s.grade + '-' + s.classNo;
-      if (!map[key]) map[key] = { grade: s.grade, classNo: s.classNo, scores: [], max: 0, count: 0 };
-      map[key].scores.push(s.best);
+      if (!map[key]) map[key] = { grade: s.grade, classNo: s.classNo, count: 0, cleared: 0, fastest: null };
       map[key].count += 1;
-      if (s.best > map[key].max) map[key].max = s.best;
+      if (s.cleared) {
+        map[key].cleared += 1;
+        if (map[key].fastest === null || s.bestClearTime < map[key].fastest) map[key].fastest = s.bestClearTime;
+      }
     });
     var rows = Object.keys(map).map(function (k) { return map[k]; })
       .sort(function (a, b) { return (a.grade - b.grade) || (a.classNo - b.classNo); });
@@ -245,22 +267,22 @@
     body.innerHTML = '';
     if (!rows.length) { body.innerHTML = '<tr><td colspan="4" class="sub">—</td></tr>'; return; }
     rows.forEach(function (r) {
-      var avg = Math.round(r.scores.reduce(function (a, b) { return a + b; }, 0) / r.scores.length);
       var tr = document.createElement('tr');
       tr.innerHTML = '<td>' + r.grade + '학년 ' + r.classNo + '반</td>' +
-        '<td class="num">' + avg + '</td>' +
-        '<td class="num">' + r.max + '</td>' +
+        '<td class="num">' + (r.fastest === null ? '—' : fmtSec(r.fastest)) + '</td>' +
+        '<td class="num">' + r.cleared + '명</td>' +
         '<td class="num">' + r.count + '명</td>';
       body.appendChild(tr);
     });
   }
 
   function renderDist(students) {
-    // 0-19, 20-39, ... 160-170 (9 구간, 20점 단위; 마지막은 170 포함)
-    var buckets = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-    var labels = ['0', '20', '40', '60', '80', '100', '120', '140', '160+'];
+    // 완전 클리어한 학생의 최단 시간 분포. 30초 단위 6구간(0~180).
+    var buckets = [0, 0, 0, 0, 0, 0];
+    var labels = ['<30', '30', '60', '90', '120', '150'];
     students.forEach(function (s) {
-      var b = Math.min(8, Math.floor(s.best / 20));
+      if (!s.cleared) return;
+      var b = Math.min(5, Math.floor(s.bestClearTime / 30));
       buckets[b]++;
     });
     var max = Math.max.apply(null, buckets.concat([1]));
@@ -280,13 +302,13 @@
 
   /* ------------------------------- 데이터 관리 ------------------------------- */
   function exportCsv() {
-    var header = ['학번', '성명', '학년', '반', '번호', '점수', '소요시간(초)', '모드', '플레이시각', '차시'];
+    var header = ['학번', '성명', '학년', '반', '번호', '점수', '소요시간(초)', '완료', '모드', '플레이시각', '차시'];
     var rows = records.slice().sort(function (a, b) {
       return (new Date(b.played_at) - new Date(a.played_at));
     }).map(function (r) {
       var p = Storage.parseStudentNo(r.student_no);
       return [r.student_no, r.name, p.grade, p.classNo, p.number,
-        r.score, r.duration_sec, r.mode, r.played_at, r.session || ''];
+        r.score, r.duration_sec, r.cleared ? 'Y' : 'N', r.mode, r.played_at, r.session || ''];
     });
     var csv = [header].concat(rows).map(function (row) {
       return row.map(csvCell).join(',');
@@ -315,22 +337,6 @@
     }).catch(function (e) {
       alert('초기화 실패: ' + e);
     });
-  }
-
-  function setCommonSeed() {
-    var cur = localStorage.getItem(COMMON_SEED_KEY) || '';
-    var v = prompt('공통 보드 번호(정수)를 입력하세요.\n같은 번호 = 전체 학생 동일 보드.\n비우면 날짜 기반 자동값을 사용합니다.', cur);
-    if (v === null) return;
-    v = v.trim();
-    if (v === '') {
-      localStorage.removeItem(COMMON_SEED_KEY);
-      alert('공통 보드를 날짜 기반 자동값으로 설정했습니다.');
-    } else if (/^\d+$/.test(v)) {
-      localStorage.setItem(COMMON_SEED_KEY, v);
-      alert('공통 보드 번호 ' + v + ' 로 설정했습니다.\n(이 설정은 이 기기에 저장됩니다.)');
-    } else {
-      alert('정수만 입력할 수 있습니다.');
-    }
   }
 
   /* ------------------------------- 유틸 ------------------------------- */

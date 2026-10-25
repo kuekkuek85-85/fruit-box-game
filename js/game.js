@@ -65,26 +65,42 @@
 
   FruitBoxGame.prototype.idx = function (r, c) { return r * this.cols + c; };
 
+  // 구성형 보드 생성: 보드를 '합이 10인 도미노(1×2·2×1)'로 빈틈없이 덮는다.
+  // 각 도미노는 두 칸이 정확히 10이므로 그 자체가 유효한 직사각형 선택이고,
+  // 도미노끼리 겹치지 않으므로 어떤 순서로 지워도 전부 지울 수 있다.
+  // → 모든 보드가 '완전 클리어 가능'함을 보장한다(타임어택 전제).
+  // 세로(행) 길이가 짝수여야 2행 밴드로 덮을 수 있다(기본 10행).
   FruitBoxGame.prototype._generateBoard = function () {
     var rand = this.seed != null ? mulberry32(this.seed) : Math.random;
-    var n = this.cols * this.rows;
-    var vals = new Array(n);
-    var sum = 0;
-    for (var i = 0; i < n; i++) {
-      var v = 1 + Math.floor(rand() * 9); // 1~9
-      vals[i] = v;
-      sum += v;
+    var cols = this.cols, rows = this.rows;
+    var vals = new Array(cols * rows).fill(0);
+    var self = this;
+
+    function putPair(i1, i2) {
+      var a = 1 + Math.floor(rand() * 9); // 1~9
+      var b = 10 - a;                     // 1~9 (보수)
+      if (rand() < 0.5) { vals[i1] = a; vals[i2] = b; }
+      else { vals[i1] = b; vals[i2] = a; }
     }
-    // 전체 합을 10의 배수로 맞춰 '퍼펙트 클리어'가 수학적으로 가능하도록 보정.
-    // (완전 해결 가능성까지 보장하진 않으므로 힌트/새 보드를 함께 제공한다.)
-    var rem = sum % 10;
-    if (rem !== 0) {
-      var need = rem; // 이만큼 줄여야 함
-      for (var j = 0; j < n && need > 0; j++) {
-        var dec = Math.min(need, vals[j] - 1); // 최소 1 유지
-        if (dec > 0) { vals[j] -= dec; need -= dec; }
+
+    for (var r = 0; r + 1 < rows; r += 2) {
+      var c = 0;
+      while (c < cols) {
+        if (c + 1 < cols && rand() < 0.5) {
+          // 가로 도미노 2개(위·아래 행)
+          putPair(self.idx(r, c), self.idx(r, c + 1));
+          putPair(self.idx(r + 1, c), self.idx(r + 1, c + 1));
+          c += 2;
+        } else {
+          // 세로 도미노
+          putPair(self.idx(r, c), self.idx(r + 1, c));
+          c += 1;
+        }
       }
     }
+    // 행 수가 홀수면 마지막 한 행이 남는다(기본 10행에선 발생하지 않음).
+    // 이 경우 가로 도미노로 덮되, 마지막 한 칸이 남으면 이웃과 세로로 못 묶으므로
+    // 짝수 행 사용을 전제로 한다.
     return vals;
   };
 
