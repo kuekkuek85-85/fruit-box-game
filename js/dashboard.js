@@ -280,12 +280,17 @@
   }
 
   function renderDist(students) {
-    // 완전 클리어한 학생의 최단 시간 분포. 30초 단위 6구간(0~180).
-    var buckets = [0, 0, 0, 0, 0, 0];
-    var labels = ['<30', '30', '60', '90', '120', '150'];
-    students.forEach(function (s) {
-      if (!s.cleared) return;
-      var b = Math.min(5, Math.floor(s.bestClearTime / 30));
+    // 완전 클리어(3단계) 학생의 총 소요시간 분포. 60초 단위, 데이터 범위에 맞춰
+    // 구간 수를 동적으로 정한다(3단계 총합은 최대 약 540초까지 가능).
+    var times = students.filter(function (s) { return s.cleared; })
+      .map(function (s) { return s.bestClearTime; });
+    var W = 60; // 60초 단위
+    var maxT = times.length ? Math.max.apply(null, times) : 0;
+    var nb = Math.max(1, Math.floor(maxT / W) + 1);
+    if (nb > 12) nb = 12; // 안전 상한(마지막 구간이 그 이상을 포함)
+    var buckets = new Array(nb).fill(0);
+    times.forEach(function (t) {
+      var b = Math.min(nb - 1, Math.floor(t / W));
       buckets[b]++;
     });
     var max = Math.max.apply(null, buckets.concat([1]));
@@ -298,7 +303,7 @@
       bar.innerHTML = n ? '<span>' + n + '</span>' : '';
       dist.appendChild(bar);
       var lab = document.createElement('div');
-      lab.textContent = labels[i];
+      lab.textContent = (i * W) + (i === nb - 1 ? '+' : '');
       dl.appendChild(lab);
     });
   }
