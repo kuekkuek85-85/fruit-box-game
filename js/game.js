@@ -237,10 +237,26 @@
     return s;
   };
 
+  // 사각형 안 남은(0 아님) 사과 수
+  FruitBoxGame.prototype._countRect = function (rect) {
+    var n = 0;
+    for (var r = rect.r0; r <= rect.r1; r++) {
+      for (var c = rect.c0; c <= rect.c1; c++) {
+        if (this.values[this.idx(r, c)] > 0) n++;
+      }
+    }
+    return n;
+  };
+
+  // 유효한 선택: 합이 10이고, 남은 사과 수가 이 단계의 묶음 크기와 같아야 함.
+  // (2단계는 3개, 3단계는 4개만 인정 — 단계 규칙 강제)
+  FruitBoxGame.prototype._isValidRect = function (rect) {
+    return this._sumRect(rect) === 10 && this._countRect(rect) === this.groupSize;
+  };
+
   FruitBoxGame.prototype._updateSelection = function (cur) {
     var rect = this._rect(this._startCell, cur);
-    var sum = this._sumRect(rect);
-    var valid = sum === 10;
+    var valid = this._isValidRect(rect);
     for (var i = 0; i < this.cells.length; i++) {
       var r = Math.floor(i / this.cols), c = i % this.cols;
       var inside = r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1;
@@ -270,7 +286,7 @@
     }
     if (any) {
       rect = { r0: r0, r1: r1, c0: c0, c1: c1 };
-      if (this._sumRect(rect) === 10) {
+      if (this._isValidRect(rect)) {
         this._applyClear(rect);
       }
     }
@@ -323,8 +339,9 @@
         for (var r1 = r0; r1 < this.rows; r1++) {
           for (var c1 = c0; c1 < this.cols; c1++) {
             // 사각형 (r0..r1, c0..c1) 합을 매번 계산 (보드가 작아 비용 허용)
-            var s = this._sumRect({ r0: r0, r1: r1, c0: c0, c1: c1 });
-            if (s === 10) return { r0: r0, r1: r1, c0: c0, c1: c1 };
+            var rect = { r0: r0, r1: r1, c0: c0, c1: c1 };
+            var s = this._sumRect(rect);
+            if (this._isValidRect(rect)) return rect; // 합 10 && 묶음 크기 일치
             if (s > 10 && this._minRectVal(r0, r1, c0, c1) > 0) {
               // 모두 양수면 더 넓혀도 합이 줄지 않음 → 열 확장 중단
               break;

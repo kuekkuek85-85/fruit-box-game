@@ -10,6 +10,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var PW = window.TEACHER_PASSWORD || 'teacher';
+  var MODE = '타임어택 3단계'; // 집계·순위는 이 모드 기록만 사용(이전 버전 기록 분리)
 
   function fmtSec(s) { return (Math.round(s * 10) / 10) + ''; }
 
@@ -156,10 +157,12 @@
   }
 
   function render() {
-    var students = aggregateStudents(records);
+    // 이 버전(3단계) 기록만 집계·순위에 사용(이전 버전 기록과 섞이지 않도록)
+    var modeRecords = records.filter(function (r) { return r.mode === MODE; });
+    var students = aggregateStudents(modeRecords);
     var filtered = applyFilters(students);
 
-    renderSummary(students);
+    renderSummary(students, modeRecords.length);
     renderTable(filtered);
     renderRank(filtered);
     renderClasses(filtered);
@@ -167,7 +170,7 @@
     updateSortArrows();
   }
 
-  function renderSummary(all) {
+  function renderSummary(all, totalPlays) {
     var participants = all.length;
     var clearedStudents = all.filter(function (s) { return s.cleared; });
     var fastest = null;
@@ -176,7 +179,7 @@
     });
     $('summary').innerHTML =
       stat('참여 학생', participants + '명') +
-      stat('총 플레이', records.length + '회') +
+      stat('총 플레이', totalPlays + '회') +
       stat('클리어 학생', clearedStudents.length + '명') +
       stat('최단 클리어', fastest === null ? '—' : fmtSec(fastest) + '초');
   }

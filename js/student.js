@@ -7,6 +7,7 @@
   var LAST_KEY = 'fruitbox.lastStudent';
   var SETTINGS_KEY = 'fruitbox.settings';
   var DURATION = 180; // 타임어택: 제한 시간 180초 고정
+  var MODE = '타임어택 3단계'; // 이 버전의 기록 모드(이전 버전 기록과 분리)
 
   var $ = function (id) { return document.getElementById(id); };
   var screens = {
@@ -79,7 +80,7 @@
     return Storage.getAllRecords().then(function (records) {
       var best = null;
       records.forEach(function (r) {
-        if (r.student_no === studentNo && r.cleared &&
+        if (r.student_no === studentNo && r.cleared && r.mode === MODE &&
             (best === null || r.duration_sec < best)) {
           best = r.duration_sec;
         }
@@ -239,7 +240,7 @@
       duration_sec: totalSec,
       cleared: cleared,
       stage: reachedIdx + 1, // 도달(마지막으로 플레이한) 단계
-      mode: '타임어택 3단계',
+      mode: MODE,
       played_at: new Date().toISOString(),
       session: localStorage.getItem('fruitbox.session') || ''
     };
