@@ -133,7 +133,15 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .apple.selected { background: var(--brand-dark); transform: scale(.92); }
 .apple.selected.cleared { background: rgba(0,0,0,.05); }
 .apple.valid { outline: 3px solid var(--valid); outline-offset: -1px; }
-.apple.hint { box-shadow: 0 0 0 3px var(--good) inset; }
+/* 힌트: 눈에 잘 띄도록 바깥 링 + 글로우 + 맥박 애니메이션 */
+.apple.hint {
+  outline: 3px solid var(--good);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, .35), 0 0 14px 3px rgba(22, 163, 74, .85);
+  z-index: 3;
+  animation: hintPulse .6s ease-in-out infinite;
+}
+@keyframes hintPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
 .apple.pop { animation: pop .2s ease-out; }
 @keyframes pop { 0% { transform: scale(1); } 100% { transform: scale(0); opacity: 0; } }
 
