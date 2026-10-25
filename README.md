@@ -64,14 +64,38 @@ python3 -m http.server 8000
 검증할 수 있습니다. 같은 기기의 다른 탭(교사 대시보드)에는 실시간 반영됩니다.
 
 **2단계(학급 집계):** 여러 기기 기록을 모으려면 Firebase Firestore 를 붙입니다.
+`js/firebase-config.js` 는 **빌드 시 환경변수로 자동 생성**되며(저장소에 커밋하지
+않음), 설정이 주입되면 `storage.js` 가 자동으로 Firebase 백엔드로 전환하고
+대시보드는 `onSnapshot` 으로 실시간 집계합니다. 초기화 실패/네트워크 불안정 시
+결과는 자동 재시도(0.5s·1s·2s) 후 "다시 저장" 버튼을 제공합니다.
 
-1. `js/firebase-config.example.js` → `js/firebase-config.js` 로 복사.
-2. 본인 Firebase 프로젝트 값으로 교체(콘솔 → 프로젝트 설정 → 웹 앱).
-3. Firestore 생성 후 수업용 보안 규칙 설정.
+- **로컬 개발**: `js/firebase-config.example.js` → `js/firebase-config.js` 로 복사해
+  본인 값으로 채우거나, 환경변수를 지정하고 `npm run build` 실행.
+- Firestore 를 생성하고 수업용 보안 규칙을 설정해야 동작합니다(위 규칙 예시).
 
-설정이 있으면 `storage.js` 가 자동으로 Firebase 백엔드로 전환하고, 대시보드는
-`onSnapshot` 으로 실시간 집계합니다. 초기화 실패/네트워크 불안정 시 결과는
-자동 재시도(0.5s·1s·2s) 후 "다시 저장" 버튼을 제공합니다.
+### Vercel 배포 (환경변수 방식)
+
+저장소를 Import 하면 `vercel.json` 의 빌드 설정이 적용됩니다
+(Build Command: `node scripts/gen-firebase-config.js`, Output Directory: `.`).
+Vercel 프로젝트의 **Environment Variables** 에 아래 값을 추가하세요.
+
+| 변수 | 값 |
+| --- | --- |
+| `FIREBASE_API_KEY` | Firebase 웹 apiKey |
+| `FIREBASE_AUTH_DOMAIN` | `<project>.firebaseapp.com` |
+| `FIREBASE_PROJECT_ID` | 프로젝트 ID |
+| `FIREBASE_STORAGE_BUCKET` | `<project>.firebasestorage.app` |
+| `FIREBASE_MESSAGING_SENDER_ID` | 발신자 ID |
+| `FIREBASE_APP_ID` | 앱 ID |
+| `TEACHER_PASSWORD` | (선택) 교사 대시보드 비밀번호. 미지정 시 `teacher` |
+
+빌드 때 이 값들로 `js/firebase-config.js` 가 생성됩니다. 환경변수가 없으면
+localStorage 모드로 빌드되어 배포 자체는 실패하지 않습니다.
+
+> 참고: Firebase 웹 apiKey 와 `TEACHER_PASSWORD` 는 결국 클라이언트 JS 로
+> 전달되어 브라우저에서 보입니다(정적 사이트 특성). 환경변수 방식의 이점은
+> "저장소에 값을 커밋하지 않는 것"이며, 실제 접근 제어는 Firestore 보안 규칙이
+> 담당합니다.
 
 > 보안 규칙 예시(수업용, 교내 한정 권장):
 > ```

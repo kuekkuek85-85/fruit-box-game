@@ -1,6 +1,6 @@
-# 참고: js/firebase-config.js 는 커밋합니다.
-# Firebase 웹 apiKey 는 공개용 클라이언트 식별자이며(비밀 아님), 정적 호스팅에
-# 함께 배포되어야 동작합니다. 실제 보안은 Firestore 보안 규칙으로 겁니다.
+# firebase-config.js 는 빌드 시 환경변수로 자동 생성됩니다(scripts/gen-firebase-config.js).
+# 저장소에는 커밋하지 않고, 로컬 개발 시에는 example 을 복사해 사용하세요.
+js/firebase-config.js
 
 # OS / 에디터
 .DS_Store
