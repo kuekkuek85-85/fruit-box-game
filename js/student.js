@@ -80,6 +80,10 @@
         if (r.student_no === studentNo && r.score > best) best = r.score;
       });
       return best;
+    }).catch(function () {
+      // 최고기록 조회 실패(네트워크·권한 등)가 결과 저장을 막으면 안 된다.
+      // 0 으로 폴백해 saveWithRetry 경로(및 재저장 버튼)를 항상 보장한다.
+      return 0;
     });
   }
 

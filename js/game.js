@@ -243,9 +243,20 @@
     this._renderValues();
     this.onScore(this.score);
     this._beep(660, 0.06);
-    if (this.score >= this.cols * this.rows) {
+    // 퍼펙트 클리어는 현재 보드에 남은 사과가 0일 때로 판정한다.
+    // (누적 점수 기준이면 '새 보드'로 점수를 유지한 채 보드를 갈았을 때
+    //  보드가 가득 찼는데도 게임이 끝나는 오판이 생긴다.)
+    if (this._remainingCount() === 0) {
       this._end(true);
     }
+  };
+
+  FruitBoxGame.prototype._remainingCount = function () {
+    var n = 0;
+    for (var i = 0; i < this.values.length; i++) {
+      if (this.values[i] > 0) n++;
+    }
+    return n;
   };
 
   /* --------------------------------- 보조 기능 --------------------------------- */
@@ -253,11 +264,9 @@
   FruitBoxGame.prototype.findValidRect = function () {
     for (var r0 = 0; r0 < this.rows; r0++) {
       for (var c0 = 0; c0 < this.cols; c0++) {
-        if (this.values[this.idx(r0, c0)] === 0) continue;
-        var rowSum = 0;
+        // 빈칸(0)도 사각형의 좌상단 기준점이 될 수 있다. 사과가 지워진 뒤에는
+        // 좌상단 모서리가 빈칸인 유효 사각형이 생길 수 있으므로 건너뛰지 않는다.
         for (var r1 = r0; r1 < this.rows; r1++) {
-          // 각 r1 행에 대해 열 방향 누적
-          var sum = 0;
           for (var c1 = c0; c1 < this.cols; c1++) {
             // 사각형 (r0..r1, c0..c1) 합을 매번 계산 (보드가 작아 비용 허용)
             var s = this._sumRect({ r0: r0, r1: r1, c0: c0, c1: c1 });
