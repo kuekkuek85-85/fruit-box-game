@@ -1,0 +1,9 @@
+# 참고: js/firebase-config.js 는 커밋합니다.
+# Firebase 웹 apiKey 는 공개용 클라이언트 식별자이며(비밀 아님), 정적 호스팅에
+# 함께 배포되어야 동작합니다. 실제 보안은 Firestore 보안 규칙으로 겁니다.
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
