@@ -167,9 +167,14 @@
     var students = aggregateStudents(modeRecords);
     var filtered = applyFilters(students);
 
+    // 순위도 현재 필터(학년·반·검색)를 따르도록 filtered 학생들의 기록만 사용
+    var allowed = {};
+    filtered.forEach(function (s) { allowed[s.student_no] = true; });
+    var rankRecords = modeRecords.filter(function (r) { return allowed[r.student_no]; });
+
     renderSummary(students, modeRecords.length);
     renderTable(filtered);
-    renderRank(modeRecords);
+    renderRank(rankRecords);
     renderClasses(filtered);
     renderDist(filtered);
     updateSortArrows();
