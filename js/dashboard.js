@@ -38,6 +38,7 @@
   var records = [];
   var sortKey = 'clearTime';
   var sortDir = 1; // 1 오름차순(빠른 순), -1 내림차순
+  var rankStage = 3; // 순위 카드에서 보고 있는 단계(1/2/3)
 
   function init() {
     Storage.ready().then(function () {
@@ -52,6 +53,10 @@
     $('filterClass').addEventListener('change', render);
     $('btnCsv').addEventListener('click', exportCsv);
     $('btnReset').addEventListener('click', resetAll);
+
+    [1, 2, 3].forEach(function (k) {
+      $('dashRankStage' + k).addEventListener('click', function () { rankStage = k; render(); });
+    });
 
     document.querySelectorAll('th[data-sort]').forEach(function (th) {
       th.addEventListener('click', function () {
@@ -164,7 +169,7 @@
 
     renderSummary(students, modeRecords.length);
     renderTable(filtered);
-    renderRank(filtered);
+    renderRank(modeRecords);
     renderClasses(filtered);
     renderDist(filtered);
     updateSortArrows();
@@ -229,26 +234,31 @@
     });
   }
 
-  function renderRank(students) {
-    // 완전 클리어한 학생을 최단 시간 순으로, 그 다음 미클리어 학생을 점수 순으로.
-    var cleared = students.filter(function (s) { return s.cleared; })
-      .sort(function (a, b) { return a.bestClearTime - b.bestClearTime; });
-    var notCleared = students.filter(function (s) { return !s.cleared; })
-      .sort(function (a, b) { return b.bestScore - a.bestScore; });
-    var top = cleared.concat(notCleared).slice(0, 10);
+  // 선택 단계(rankStage)를 가장 빨리 깬 순으로. 학생당 그 단계 최고 기록 1건.
+  function renderRank(modeRecords) {
+    [1, 2, 3].forEach(function (k) {
+      $('dashRankStage' + k).classList.toggle('active', k === rankStage);
+    });
+    var best = {};
+    modeRecords.forEach(function (r) {
+      if (!r.stageTimes) return;
+      var t = r.stageTimes[rankStage - 1];
+      if (t == null) return;
+      var cur = best[r.student_no];
+      if (!cur || t < cur.time) best[r.student_no] = { name: r.name, no: r.student_no, time: t };
+    });
+    var top = Object.keys(best).map(function (k) { return best[k]; })
+      .sort(function (a, b) { return a.time - b.time; }).slice(0, 10);
 
     var ol = $('rankList');
     ol.innerHTML = '';
-    if (!top.length) { ol.innerHTML = '<li class="sub">아직 기록이 없습니다.</li>'; return; }
+    if (!top.length) { ol.innerHTML = '<li class="sub">' + rankStage + '단계 기록이 아직 없습니다.</li>'; return; }
     top.forEach(function (s, i) {
-      var right = s.cleared
-        ? '<span class="sc">' + fmtSec(s.bestClearTime) + '초</span>'
-        : '<span class="sub">' + s.bestScore + '점 · 미완</span>';
       var li = document.createElement('li');
       li.innerHTML =
         '<span class="pos">' + (i + 1) + '</span>' +
-        '<span class="nm">' + esc(s.name) + ' <span class="sub">' + esc(s.student_no) + '</span></span>' +
-        right;
+        '<span class="nm">' + esc(s.name) + ' <span class="sub">' + esc(s.no) + '</span></span>' +
+        '<span class="sc">' + fmtSec(s.time) + '초</span>';
       ol.appendChild(li);
     });
   }

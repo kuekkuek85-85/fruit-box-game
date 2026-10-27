@@ -40,7 +40,12 @@
     <section id="screen-ranking" class="screen">
       <div class="identify card">
         <h1>🏆 순위</h1>
-        <p class="sub">3단계를 모두 깬 기록을 <b>가장 빠른 순</b>으로 보여줍니다.</p>
+        <p class="sub">각 단계를 <b>가장 빨리 깬 순</b>으로 보여줍니다. 단계를 선택하세요.</p>
+        <div class="mode-row" style="margin-bottom:14px;">
+          <button id="rankStage1" style="flex:1;">1단계</button>
+          <button id="rankStage2" style="flex:1;">2단계</button>
+          <button id="rankStage3" style="flex:1;">3단계</button>
+        </div>
         <ol class="rank-list" id="studentRankList"></ol>
         <button class="primary" id="btnRankBack" style="width:100%; margin-top:16px;">← 돌아가기</button>
       </div>
