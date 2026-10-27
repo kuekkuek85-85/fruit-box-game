@@ -41,6 +41,7 @@
     this.seed = opts.seed; // 지정 시 공통 보드
     this.countdownEl = opts.countdownEl || null; // 시작 카운트다운 오버레이
     this._countTimer = null;
+    this._starting = false; // 카운트다운 진행 중 여부
 
     this.onScore = opts.onScore || function () {};
     this.onTime = opts.onTime || function () {};
@@ -414,11 +415,13 @@
     this._history = [];
     this.running = false; // 카운트다운 동안 입력·타이머 정지
     this.paused = false;
+    this._starting = true;
     this.onScore(0);
     this.onTime(this.remaining);
     this.onHintChange(this.hintsLeft);
     var self = this;
     this._countdown(function () {
+      self._starting = false;
       self.running = true;
       self._startTs = Date.now(); // 소요 시간은 카운트다운 이후부터
       self._tick();
@@ -470,7 +473,13 @@
   };
 
   FruitBoxGame.prototype._end = function (perfect) {
-    if (!this.running) return;
+    if (!this.running && !this._starting) return;
+    if (this._starting) {
+      // 카운트다운 중 종료(그만두기) 요청: 대기 중인 시작을 취소
+      clearTimeout(this._countTimer);
+      this._starting = false;
+      if (this.countdownEl) { this.countdownEl.hidden = true; this.countdownEl.classList.remove('go'); }
+    }
     this.running = false;
     clearInterval(this._timer);
     this._clearSelectionClasses();
@@ -482,6 +491,7 @@
 
   FruitBoxGame.prototype.stop = function () {
     this.running = false;
+    this._starting = false;
     clearInterval(this._timer);
     clearTimeout(this._countTimer);
     if (this.countdownEl) { this.countdownEl.hidden = true; this.countdownEl.classList.remove('go'); }
