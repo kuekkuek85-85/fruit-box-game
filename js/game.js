@@ -39,6 +39,8 @@
     this.soundOn = opts.soundOn !== false;
     this.hintLimit = opts.hintLimit != null ? opts.hintLimit : 2;
     this.seed = opts.seed; // 지정 시 공통 보드
+    this.countdownEl = opts.countdownEl || null; // 시작 카운트다운 오버레이
+    this._countTimer = null;
 
     this.onScore = opts.onScore || function () {};
     this.onTime = opts.onTime || function () {};
@@ -410,13 +412,44 @@
     this.remaining = this.duration;
     this.hintsLeft = this.hintLimit;
     this._history = [];
-    this.running = true;
+    this.running = false; // 카운트다운 동안 입력·타이머 정지
     this.paused = false;
-    this._startTs = Date.now();
     this.onScore(0);
     this.onTime(this.remaining);
     this.onHintChange(this.hintsLeft);
-    this._tick();
+    var self = this;
+    this._countdown(function () {
+      self.running = true;
+      self._startTs = Date.now(); // 소요 시간은 카운트다운 이후부터
+      self._tick();
+    });
+  };
+
+  // 시작 전 3·2·1·시작! 을 크게 보여준 뒤 done() 호출.
+  FruitBoxGame.prototype._countdown = function (done) {
+    clearTimeout(this._countTimer);
+    var el = this.countdownEl;
+    if (!el) { done(); return; } // 오버레이 없으면 즉시 시작
+    var seq = ['3', '2', '1', '시작!'];
+    var self = this;
+    var i = 0;
+    el.hidden = false;
+    function step() {
+      if (i >= seq.length) {
+        el.hidden = true;
+        el.classList.remove('go');
+        done();
+        return;
+      }
+      el.textContent = seq[i];
+      el.classList.toggle('go', seq[i] === '시작!');
+      // 애니메이션 재시작
+      el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+      self._beep(i < 3 ? 520 : 880, 0.12);
+      i++;
+      self._countTimer = setTimeout(step, i <= 3 ? 700 : 500);
+    }
+    step();
   };
 
   FruitBoxGame.prototype._tick = function () {
@@ -450,6 +483,8 @@
   FruitBoxGame.prototype.stop = function () {
     this.running = false;
     clearInterval(this._timer);
+    clearTimeout(this._countTimer);
+    if (this.countdownEl) { this.countdownEl.hidden = true; this.countdownEl.classList.remove('go'); }
   };
 
   FruitBoxGame.prototype.setSound = function (on) { this.soundOn = on; };
