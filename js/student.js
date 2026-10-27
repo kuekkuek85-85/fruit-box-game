@@ -12,6 +12,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var screens = {
     identify: $('screen-identify'),
+    ranking: $('screen-ranking'),
     game: $('screen-game'),
     result: $('screen-result')
   };
@@ -173,6 +174,53 @@
     var cleared = result.perfect && stageIndex === STAGES.length - 1;
     finishRun(cleared, runElapsed, runScore, stageIndex);
   }
+
+  /* ------------------------------- 순위(학생용) ------------------------------- */
+  // 3단계 완전 클리어 기록을 최단 시간 순으로 집계(학생당 최고 기록 1건).
+  function renderRanking() {
+    var ol = $('studentRankList');
+    ol.innerHTML = '<li class="sub">불러오는 중…</li>';
+    Storage.getAllRecords().then(function (records) {
+      var best = {}; // student_no -> {name, time}
+      (records || []).forEach(function (r) {
+        if (!r.cleared || r.mode !== MODE) return;
+        var cur = best[r.student_no];
+        if (!cur || r.duration_sec < cur.time) {
+          best[r.student_no] = { name: r.name, no: r.student_no, time: r.duration_sec };
+        }
+      });
+      var list = Object.keys(best).map(function (k) { return best[k]; })
+        .sort(function (a, b) { return a.time - b.time; })
+        .slice(0, 20);
+      ol.innerHTML = '';
+      if (!list.length) {
+        ol.innerHTML = '<li class="sub">아직 3단계를 모두 깬 기록이 없어요. 첫 기록의 주인공이 되어보세요!</li>';
+        return;
+      }
+      list.forEach(function (s, i) {
+        var li = document.createElement('li');
+        var pos = document.createElement('span');
+        pos.className = 'pos'; pos.textContent = (i + 1);
+        var nm = document.createElement('span');
+        nm.className = 'nm'; nm.textContent = s.name;
+        var sub = document.createElement('span');
+        sub.className = 'sub'; sub.textContent = ' ' + s.no;
+        nm.appendChild(sub);
+        var sc = document.createElement('span');
+        sc.className = 'sc'; sc.textContent = fmtSec(s.time) + '초';
+        li.appendChild(pos); li.appendChild(nm); li.appendChild(sc);
+        ol.appendChild(li);
+      });
+    }).catch(function () {
+      ol.innerHTML = '<li class="sub">순위를 불러오지 못했어요.</li>';
+    });
+  }
+
+  $('btnRanking').addEventListener('click', function () {
+    renderRanking();
+    show('ranking');
+  });
+  $('btnRankBack').addEventListener('click', function () { show('identify'); });
 
   /* ------------------------------- 게임 컨트롤 ------------------------------- */
   $('btnStart').addEventListener('click', startGame);

@@ -31,7 +31,18 @@
         </div>
         <p class="sub" style="margin:0 0 16px;">매 단계 새로운 보드가 랜덤으로 주어집니다. 단계마다 제한 시간은 180초입니다.</p>
         <button class="primary" id="btnStart">시작하기</button>
+        <button id="btnRanking" style="width:100%; margin-top:8px;">🏆 순위 보기</button>
         <p class="backend-note" id="backendNote"></p>
+      </div>
+    </section>
+
+    <!-- 1-2) 순위 화면 (학생용, 읽기 전용) -->
+    <section id="screen-ranking" class="screen">
+      <div class="identify card">
+        <h1>🏆 순위</h1>
+        <p class="sub">3단계를 모두 깬 기록을 <b>가장 빠른 순</b>으로 보여줍니다.</p>
+        <ol class="rank-list" id="studentRankList"></ol>
+        <button class="primary" id="btnRankBack" style="width:100%; margin-top:16px;">← 돌아가기</button>
       </div>
     </section>
 
