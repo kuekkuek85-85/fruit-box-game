@@ -105,7 +105,21 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .who { margin-left: auto; text-align: right; font-size: 13px; color: var(--muted); }
 .who b { color: var(--ink); }
 
-.board-shell { display: flex; justify-content: center; }
+.board-shell { display: flex; justify-content: center; position: relative; }
+.countdown {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(64px, 22vw, 180px); font-weight: 900;
+  color: var(--brand);
+  background: rgba(255, 255, 255, .55);
+  border-radius: 12px;
+  z-index: 5; pointer-events: none;
+  animation: cdPop .5s ease-out;
+}
+body.soft .countdown { background: rgba(255, 255, 255, .55); }
+.countdown.go { color: var(--good); font-size: clamp(40px, 14vw, 120px); }
+.countdown[hidden] { display: none; }
+@keyframes cdPop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .board {
   display: grid;
   grid-template-columns: repeat(var(--cols), 1fr);

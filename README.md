@@ -112,13 +112,26 @@ localStorage 모드로 빌드되어 배포 자체는 실패하지 않습니다.
 > ```
 > rules_version = '2';
 > service cloud.firestore {
->   match /databases/{db}/documents {
+>   match /databases/{database}/documents {
 >     match /gameRecords/{id} {
->       allow read, write: if true;  // 교내 수업용. 공개 배포 시 반드시 강화하세요.
+>       allow read, delete: if true;                 // 교사 대시보드 조회·초기화
+>       allow create: if
+>         request.resource.data.student_no is string &&
+>         request.resource.data.student_no.matches('[0-9]{5}') &&
+>         request.resource.data.name is string &&
+>         request.resource.data.name.size() >= 1 &&
+>         request.resource.data.name.size() <= 10 &&
+>         request.resource.data.score is int &&
+>         request.resource.data.score >= 0 &&
+>         request.resource.data.score <= 510;        // 3단계 총점 상한(170+180+160)
+>       allow update: if false;
 >     }
 >   }
 > }
 > ```
+> ⚠️ 3단계로 바뀌면서 점수(총 지운 사과 수)가 최대 **510**까지 올라갑니다.
+> 규칙의 점수 상한이 170 이면 170 초과 기록이 막혀 저장이 실패하니 **510**(또는
+> 상한 제거)으로 두세요. 공개 배포 시에는 반드시 더 강화하세요.
 
 ## 개인정보
 

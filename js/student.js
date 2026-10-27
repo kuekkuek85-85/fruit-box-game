@@ -136,7 +136,8 @@
         $('hintLeft').textContent = left;
         $('btnHint').disabled = left <= 0;
       },
-      onEnd: onStageEnd
+      onEnd: onStageEnd,
+      countdownEl: $('countdown') // 단계 시작 전 3·2·1 카운트다운
       // 시드 미지정 → 매 단계 랜덤 보드(구성형 생성기로 항상 완전 클리어 가능)
     };
 
