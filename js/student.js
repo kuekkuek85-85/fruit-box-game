@@ -46,8 +46,8 @@
 
   Storage.ready().then(function () {
     $('backendNote').textContent = Storage.backendName() === 'firebase'
-      ? '저장소: Firebase (여러 기기 기록이 모입니다)'
-      : '저장소: 이 기기 (localStorage) — 다른 기기 기록은 합쳐지지 않습니다';
+      ? '기록이 서버에 저장되어 어디서나 순위가 공유됩니다'
+      : '이 기기에만 기록이 저장됩니다 (다른 기기와 합쳐지지 않음)';
   });
 
   var current = null; // { student_no, name }

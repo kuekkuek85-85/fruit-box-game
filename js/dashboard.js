@@ -43,7 +43,7 @@
   function init() {
     Storage.ready().then(function () {
       $('dashBackend').textContent = Storage.backendName() === 'firebase'
-        ? 'Firebase 연결됨 (실시간)' : '로컬 저장소 (이 기기)';
+        ? '서버 연결됨 (실시간 집계)' : '이 기기 저장 (단일 기기)';
     });
     Storage.onChange(refresh);
     refresh();
