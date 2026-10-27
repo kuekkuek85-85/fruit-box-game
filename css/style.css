@@ -49,6 +49,7 @@ button {
 button:hover { filter: brightness(.97); }
 button:active { transform: translateY(1px); }
 button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 button.primary:hover { background: var(--brand-dark); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 

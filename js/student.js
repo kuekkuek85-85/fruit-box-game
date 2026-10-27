@@ -101,6 +101,7 @@
   var stageIndex = 0;
   var runElapsed = 0; // 지금까지 단계들의 소요 시간 합(초)
   var runScore = 0;   // 지금까지 지운 사과 수 합
+  var stageTimes = []; // 각 단계를 깬 소요 시간(초). index=단계-1, 깬 단계만 채워짐
 
   function startGame() {
     var id = validateIdentity();
@@ -146,6 +147,7 @@
     stageIndex = 0;
     runElapsed = 0;
     runScore = 0;
+    stageTimes = [];
     startStage(0);
 
     syncSoundButton();
@@ -165,6 +167,7 @@
   function onStageEnd(result) {
     runElapsed += result.duration;
     runScore += result.score;
+    if (result.perfect) stageTimes[stageIndex] = result.duration; // 이 단계 클리어 시간 기록
 
     if (result.perfect && stageIndex < STAGES.length - 1) {
       stageIndex++;
@@ -176,25 +179,34 @@
   }
 
   /* ------------------------------- 순위(학생용) ------------------------------- */
-  // 3단계 완전 클리어 기록을 최단 시간 순으로 집계(학생당 최고 기록 1건).
+  var rankStage = 1; // 현재 보고 있는 단계(1/2/3)
+
+  // 선택 단계를 가장 빨리 깬 순으로 집계(학생당 그 단계 최고 기록 1건).
+  // stageTimes[단계-1] 이 있는 기록만 사용(그 단계를 깬 학생).
+  function stageRanking(records, k) {
+    var best = {};
+    (records || []).forEach(function (r) {
+      if (r.mode !== MODE || !r.stageTimes) return;
+      var t = r.stageTimes[k - 1];
+      if (t == null) return;
+      var cur = best[r.student_no];
+      if (!cur || t < cur.time) best[r.student_no] = { name: r.name, no: r.student_no, time: t };
+    });
+    return Object.keys(best).map(function (key) { return best[key]; })
+      .sort(function (a, b) { return a.time - b.time; }).slice(0, 20);
+  }
+
   function renderRanking() {
+    [1, 2, 3].forEach(function (k) {
+      $('rankStage' + k).classList.toggle('active', k === rankStage);
+    });
     var ol = $('studentRankList');
     ol.innerHTML = '<li class="sub">불러오는 중…</li>';
     Storage.getAllRecords().then(function (records) {
-      var best = {}; // student_no -> {name, time}
-      (records || []).forEach(function (r) {
-        if (!r.cleared || r.mode !== MODE) return;
-        var cur = best[r.student_no];
-        if (!cur || r.duration_sec < cur.time) {
-          best[r.student_no] = { name: r.name, no: r.student_no, time: r.duration_sec };
-        }
-      });
-      var list = Object.keys(best).map(function (k) { return best[k]; })
-        .sort(function (a, b) { return a.time - b.time; })
-        .slice(0, 20);
+      var list = stageRanking(records, rankStage);
       ol.innerHTML = '';
       if (!list.length) {
-        ol.innerHTML = '<li class="sub">아직 3단계를 모두 깬 기록이 없어요. 첫 기록의 주인공이 되어보세요!</li>';
+        ol.innerHTML = '<li class="sub">아직 ' + rankStage + '단계 기록이 없어요. 첫 기록의 주인공이 되어보세요!</li>';
         return;
       }
       list.forEach(function (s, i) {
@@ -215,6 +227,13 @@
       ol.innerHTML = '<li class="sub">순위를 불러오지 못했어요.</li>';
     });
   }
+
+  [1, 2, 3].forEach(function (k) {
+    $('rankStage' + k).addEventListener('click', function () {
+      rankStage = k;
+      renderRanking();
+    });
+  });
 
   $('btnRanking').addEventListener('click', function () {
     renderRanking();
@@ -288,6 +307,7 @@
       duration_sec: totalSec,
       cleared: cleared,
       stage: reachedIdx + 1, // 도달(마지막으로 플레이한) 단계
+      stageTimes: stageTimes.slice(), // 단계별 클리어 시간(단계별 순위용)
       mode: MODE,
       played_at: new Date().toISOString(),
       session: localStorage.getItem('fruitbox.session') || ''
