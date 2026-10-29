@@ -7,7 +7,7 @@
   var LAST_KEY = 'fruitbox.lastStudent';
   var SETTINGS_KEY = 'fruitbox.settings';
   var DURATION = 180; // 타임어택: 제한 시간 180초 고정
-  var MODE = '타임어택 3단계'; // 이 버전의 기록 모드(이전 버전 기록과 분리)
+  var MODE = '타임어택 3단계 v2'; // 이 버전의 기록 모드(규칙 변경 전 기록과 분리: 개수 제한 제거·묶음 크기 확대)
 
   var $ = function (id) { return document.getElementById(id); };
   var screens = {
