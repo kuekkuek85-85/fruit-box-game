@@ -10,7 +10,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var PW = window.TEACHER_PASSWORD || 'teacher';
-  var MODE = '타임어택 3단계'; // 집계·순위는 이 모드 기록만 사용(이전 버전 기록 분리)
+  var MODE = '타임어택 3단계 v2'; // 집계·순위는 이 모드 기록만 사용(규칙 변경 전 기록 분리)
 
   function fmtSec(s) { return (Math.round(s * 10) / 10) + ''; }
 

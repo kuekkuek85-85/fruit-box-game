@@ -34,7 +34,7 @@
     this.boardEl = boardEl;
     this.cols = opts.cols || COLS;
     this.rows = opts.rows || ROWS;
-    this.groupSize = opts.groupSize || 2; // 묶음 크기: 2(쌍)/3/4
+    this.sizes = opts.sizes || [2, 3]; // 단계별 허용 묶음 크기 집합(기본값은 17열을 분할 가능)
     this.duration = opts.duration || 120;
     this.soundOn = opts.soundOn !== false;
     this.hintLimit = opts.hintLimit != null ? opts.hintLimit : 2;
@@ -70,19 +70,18 @@
 
   FruitBoxGame.prototype.idx = function (r, c) { return r * this.cols + c; };
 
-  // 구성형 보드 생성: 보드를 '합이 10인 직사각형 묶음'으로 빈틈없이 덮는다.
-  // 각 묶음은 칸 합이 정확히 10이므로 그 자체가 유효한 직사각형 선택이고,
-  // 묶음끼리 겹치지 않으므로 어떤 순서로 지워도 전부 지울 수 있다.
-  // → 모든 보드가 '완전 클리어 가능'함을 보장한다(타임어택 전제).
-  // 묶음 크기(groupSize)별로 보드를 덮는다:
-  //   2: 2행 밴드의 도미노(1×2·2×1) — 행 수 짝수 필요
-  //   3: 가로 3칸(1×3) — 열 수가 3의 배수 필요
-  //   4: 2×2 블록 — 행·열 수 모두 짝수 필요
+  // 구성형 보드 생성: 각 행을 '합이 10인 가로 묶음'들로 빈틈없이 채운다.
+  // 각 묶음은 그 자체가 유효한 직사각형(1×k, 합 10)이라 항상 전부 지울 수 있고
+  // (완전 클리어 보장, 타임어택 전제), 단계가 오를수록 허용 묶음 크기(this.sizes)가
+  // 커져 더 큰 조합을 찾아야 하므로 복잡도가 올라간다.
+  // 선택 판정은 '합이 10'이기만 하면 되므로(개수 무관), 빈칸을 가로질러 떨어져
+  // 있는 사과끼리 묶는 것도 가능하다(_isValidRect 참고).
   FruitBoxGame.prototype._generateBoard = function () {
     var rand = this.seed != null ? mulberry32(this.seed) : Math.random;
     var cols = this.cols, rows = this.rows;
     var vals = new Array(cols * rows).fill(0);
     var self = this;
+    var sizes = (this.sizes && this.sizes.length) ? this.sizes : [2, 3];
 
     // 합이 10이 되는 k개의 값(각 1~9) 생성
     function compose(k) {
@@ -94,52 +93,47 @@
       }
       return a;
     }
-    function fillGroup(idxs) {
-      var parts = compose(idxs.length);
-      for (var i = parts.length - 1; i > 0; i--) { // 셔플
+    function shuffle(arr) {
+      for (var i = arr.length - 1; i > 0; i--) {
         var j = Math.floor(rand() * (i + 1));
-        var t = parts[i]; parts[i] = parts[j]; parts[j] = t;
+        var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
       }
-      for (var k = 0; k < idxs.length; k++) vals[idxs[k]] = parts[k];
+      return arr;
     }
-
-    var g = this.groupSize;
-    var r, c;
-    if (g === 3) {
-      for (r = 0; r < rows; r++) {
-        for (c = 0; c + 2 < cols; c += 3) {
-          fillGroup([self.idx(r, c), self.idx(r, c + 1), self.idx(r, c + 2)]);
-        }
-      }
-    } else if (g === 4) {
-      for (r = 0; r + 1 < rows; r += 2) {
-        for (c = 0; c + 1 < cols; c += 2) {
-          fillGroup([self.idx(r, c), self.idx(r, c + 1), self.idx(r + 1, c), self.idx(r + 1, c + 1)]);
-        }
-      }
-    } else { // g === 2
-      for (r = 0; r + 1 < rows; r += 2) {
-        c = 0;
-        while (c < cols) {
-          if (c + 1 < cols && rand() < 0.5) {
-            fillGroup([self.idx(r, c), self.idx(r, c + 1)]);
-            fillGroup([self.idx(r + 1, c), self.idx(r + 1, c + 1)]);
-            c += 2;
-          } else {
-            fillGroup([self.idx(r, c), self.idx(r + 1, c)]);
-            c += 1;
+    // 길이 L 을 sizes 값들로 분할(합이 정확히 L). 랜덤 순서 + 백트래킹.
+    function partition(L) {
+      function build(rem) {
+        if (rem === 0) return [];
+        var order = shuffle(sizes.slice());
+        for (var i = 0; i < order.length; i++) {
+          var s = order[i];
+          if (s <= rem) {
+            var rest = build(rem - s);
+            if (rest) return [s].concat(rest);
           }
         }
+        return null;
+      }
+      return build(L) || [L];
+    }
+
+    for (var r = 0; r < rows; r++) {
+      var seg = partition(cols);
+      var c = 0;
+      for (var si = 0; si < seg.length; si++) {
+        var k = seg[si];
+        var parts = shuffle(compose(k));
+        for (var m = 0; m < k; m++) { vals[self.idx(r, c)] = parts[m]; c++; }
       }
     }
     return vals;
   };
 
-  // 단계 전환: 보드 크기·묶음 크기를 바꾸고 DOM을 다시 만든다.
-  FruitBoxGame.prototype.configure = function (cols, rows, groupSize) {
+  // 단계 전환: 보드 크기·허용 묶음 크기를 바꾸고 DOM을 다시 만든다.
+  FruitBoxGame.prototype.configure = function (cols, rows, sizes) {
     this.cols = cols;
     this.rows = rows;
-    this.groupSize = groupSize;
+    this.sizes = sizes;
     this._buildDom();
   };
 
@@ -240,21 +234,10 @@
     return s;
   };
 
-  // 사각형 안 남은(0 아님) 사과 수
-  FruitBoxGame.prototype._countRect = function (rect) {
-    var n = 0;
-    for (var r = rect.r0; r <= rect.r1; r++) {
-      for (var c = rect.c0; c <= rect.c1; c++) {
-        if (this.values[this.idx(r, c)] > 0) n++;
-      }
-    }
-    return n;
-  };
-
-  // 유효한 선택: 합이 10이고, 남은 사과 수가 이 단계의 묶음 크기와 같아야 함.
-  // (2단계는 3개, 3단계는 4개만 인정 — 단계 규칙 강제)
+  // 유효한 선택: 직사각형 안 남은 사과의 합이 정확히 10이면 된다(개수 무관).
+  // 빈칸(지워진 칸)은 0으로 세므로, 떨어져 있는 사과끼리도 사각형으로 묶을 수 있다.
   FruitBoxGame.prototype._isValidRect = function (rect) {
-    return this._sumRect(rect) === 10 && this._countRect(rect) === this.groupSize;
+    return this._sumRect(rect) === 10;
   };
 
   FruitBoxGame.prototype._updateSelection = function (cur) {
@@ -344,7 +327,7 @@
             // 사각형 (r0..r1, c0..c1) 합을 매번 계산 (보드가 작아 비용 허용)
             var rect = { r0: r0, r1: r1, c0: c0, c1: c1 };
             var s = this._sumRect(rect);
-            if (this._isValidRect(rect)) return rect; // 합 10 && 묶음 크기 일치
+            if (this._isValidRect(rect)) return rect; // 합이 10이면 유효
             if (s > 10 && this._minRectVal(r0, r1, c0, c1) > 0) {
               // 모두 양수면 더 넓혀도 합이 줄지 않음 → 열 확장 중단
               break;
