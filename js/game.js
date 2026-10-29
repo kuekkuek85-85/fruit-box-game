@@ -34,7 +34,7 @@
     this.boardEl = boardEl;
     this.cols = opts.cols || COLS;
     this.rows = opts.rows || ROWS;
-    this.sizes = opts.sizes || [2]; // 단계별 허용 묶음 크기 집합(난이도)
+    this.sizes = opts.sizes || [2, 3]; // 단계별 허용 묶음 크기 집합(기본값은 17열을 분할 가능)
     this.duration = opts.duration || 120;
     this.soundOn = opts.soundOn !== false;
     this.hintLimit = opts.hintLimit != null ? opts.hintLimit : 2;
@@ -81,7 +81,7 @@
     var cols = this.cols, rows = this.rows;
     var vals = new Array(cols * rows).fill(0);
     var self = this;
-    var sizes = (this.sizes && this.sizes.length) ? this.sizes : [2];
+    var sizes = (this.sizes && this.sizes.length) ? this.sizes : [2, 3];
 
     // 합이 10이 되는 k개의 값(각 1~9) 생성
     function compose(k) {
