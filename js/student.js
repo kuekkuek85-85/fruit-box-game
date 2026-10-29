@@ -90,11 +90,12 @@
     }).catch(function () { return null; });
   }
 
-  // 3단계 구성: 단계별 보드 크기와 묶음 크기(합이 10인 칸 수)
+  // 3단계 구성: 단계가 오를수록 허용 묶음 크기가 커져 난이도가 상승한다.
+  // (선택은 '합이 10'이면 되고 개수 제한은 없음 — 떨어진 사과도 묶기 가능)
   var STAGES = [
-    { cols: 17, rows: 10, groupSize: 2 }, // 1단계: 2개
-    { cols: 18, rows: 10, groupSize: 3 }, // 2단계: 3개
-    { cols: 16, rows: 10, groupSize: 4 }  // 3단계: 4개
+    { cols: 17, rows: 10, sizes: [2, 3] }, // 1단계
+    { cols: 17, rows: 10, sizes: [3, 4] }, // 2단계
+    { cols: 17, rows: 10, sizes: [4, 5] }  // 3단계
   ];
 
   // 한 판(run) 상태
@@ -159,7 +160,7 @@
     var s = STAGES[i];
     $('stage').textContent = i + 1;
     $('scoreTotal').textContent = s.cols * s.rows;
-    game.configure(s.cols, s.rows, s.groupSize);
+    game.configure(s.cols, s.rows, s.sizes);
     game.start();
   }
 
