@@ -181,7 +181,42 @@
   }
 
   /* ------------------------------- 순위(학생용) ------------------------------- */
-  var rankStage = 1; // 현재 보고 있는 단계(1/2/3)
+  var rankStage = 1;     // 현재 보고 있는 단계(1/2/3)
+  var rankClass = 'all'; // 반 필터('all' = 전체 학생)
+
+  // 학번 → 반 키('학년-반'). 기록 집계/필터는 이 키 기준.
+  function classKey(no) {
+    var p = Storage.parseStudentNo(no);
+    return p.grade + '-' + p.classNo;
+  }
+  function classLabel(key) {
+    var a = key.split('-');
+    return a[0] + '학년 ' + parseInt(a[1], 10) + '반';
+  }
+  // 기록에 등장하는 반들로 필터 옵션을 채운다. 현재 선택이 사라지면 '전체'로.
+  function populateClassOptions(records) {
+    var sel = $('rankClass');
+    if (!sel) return;
+    var keys = {};
+    (records || []).forEach(function (r) {
+      if (r.mode === MODE && r.student_no) keys[classKey(r.student_no)] = true;
+    });
+    var sorted = Object.keys(keys).sort(function (a, b) {
+      var pa = a.split('-'), pb = b.split('-');
+      return (pa[0] - pb[0]) || (parseInt(pa[1], 10) - parseInt(pb[1], 10));
+    });
+    sel.innerHTML = '';
+    var optAll = document.createElement('option');
+    optAll.value = 'all'; optAll.textContent = '전체';
+    sel.appendChild(optAll);
+    sorted.forEach(function (k) {
+      var o = document.createElement('option');
+      o.value = k; o.textContent = classLabel(k);
+      sel.appendChild(o);
+    });
+    if (rankClass !== 'all' && !keys[rankClass]) rankClass = 'all';
+    sel.value = rankClass;
+  }
 
   // 선택 단계를 가장 빨리 깬 순으로 집계(학생당 그 단계 최고 기록 1건).
   // stageTimes[단계-1] 이 있는 기록만 사용(그 단계를 깬 학생).
@@ -205,10 +240,15 @@
     var ol = $('studentRankList');
     ol.innerHTML = '<li class="sub">불러오는 중…</li>';
     Storage.getAllRecords().then(function (records) {
-      var list = stageRanking(records, rankStage);
+      populateClassOptions(records);
+      var scoped = rankClass === 'all' ? records : (records || []).filter(function (r) {
+        return r.student_no && classKey(r.student_no) === rankClass;
+      });
+      var list = stageRanking(scoped, rankStage);
       ol.innerHTML = '';
       if (!list.length) {
-        ol.innerHTML = '<li class="sub">아직 ' + rankStage + '단계 기록이 없어요. 첫 기록의 주인공이 되어보세요!</li>';
+        var where = rankClass === 'all' ? '' : classLabel(rankClass) + ' ';
+        ol.innerHTML = '<li class="sub">아직 ' + where + rankStage + '단계 기록이 없어요. 첫 기록의 주인공이 되어보세요!</li>';
         return;
       }
       list.forEach(function (s, i) {
@@ -235,6 +275,11 @@
       rankStage = k;
       renderRanking();
     });
+  });
+
+  $('rankClass').addEventListener('change', function () {
+    rankClass = this.value;
+    renderRanking();
   });
 
   $('btnRanking').addEventListener('click', function () {
