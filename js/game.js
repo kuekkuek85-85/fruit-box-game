@@ -70,9 +70,10 @@
 
   FruitBoxGame.prototype.idx = function (r, c) { return r * this.cols + c; };
 
-  // 구성형 보드 생성: 각 행을 '합이 10인 가로 묶음'들로 빈틈없이 채운다.
-  // 각 묶음은 그 자체가 유효한 직사각형(1×k, 합 10)이라 항상 전부 지울 수 있고
-  // (완전 클리어 보장, 타임어택 전제), 단계가 오를수록 허용 묶음 크기(this.sizes)가
+  // 구성형 보드 생성: 격자를 '합이 10인 직선 묶음'(가로 1×k 또는 세로 k×1)들로
+  // 빈틈없이 타일링한다. 각 묶음은 그 자체가 유효한 직사각형(합 10)이라 항상 전부
+  // 지울 수 있고(완전 클리어 보장, 타임어택 전제), 가로·세로가 섞여 배치되므로
+  // 한 방향만 훑어서는 풀 수 없다. 단계가 오를수록 허용 묶음 크기(this.sizes)가
   // 커져 더 큰 조합을 찾아야 하므로 복잡도가 올라간다.
   // 선택 판정은 '합이 10'이기만 하면 되므로(개수 무관), 빈칸을 가로질러 떨어져
   // 있는 사과끼리 묶는 것도 가능하다(_isValidRect 참고).
@@ -80,7 +81,6 @@
     var rand = this.seed != null ? mulberry32(this.seed) : Math.random;
     var cols = this.cols, rows = this.rows;
     var vals = new Array(cols * rows).fill(0);
-    var self = this;
     var sizes = (this.sizes && this.sizes.length) ? this.sizes : [2, 3];
 
     // 합이 10이 되는 k개의 값(각 1~9) 생성
@@ -100,32 +100,86 @@
       }
       return arr;
     }
-    // 길이 L 을 sizes 값들로 분할(합이 정확히 L). 랜덤 순서 + 백트래킹.
-    function partition(L) {
-      function build(rem) {
-        if (rem === 0) return [];
-        var order = shuffle(sizes.slice());
-        for (var i = 0; i < order.length; i++) {
-          var s = order[i];
-          if (s <= rem) {
-            var rest = build(rem - s);
-            if (rest) return [s].concat(rest);
-          }
+
+    // 격자를 가로/세로 합10 직선 조각들로 완전 타일링(백트래킹).
+    // 항상 '아직 빈 첫 칸'을 기준점으로 삼아 오른쪽(가로) 또는 아래(세로)로 뻗는다.
+    // (왼쪽·위 칸은 이미 채워져 있으므로 직선 조각만으로 완전 타일링이 보장된다.)
+    function tile() {
+      var occ = new Array(cols * rows).fill(false);
+      var placements = [];
+      var start = 0;        // 빈 칸 탐색 시작 위치(단조 증가 힌트)
+      var steps = 0;
+      var LIMIT = 60000;    // 과도한 백트래킹 방지(초과 시 실패 → 폴백)
+      function solve() {
+        if (++steps > LIMIT) return false;
+        while (start < occ.length && occ[start]) start++;
+        if (start >= occ.length) return true; // 전부 채움
+        var i = start, savedStart = start;
+        var r = Math.floor(i / cols), c = i % cols;
+        // (방향, 크기) 후보를 랜덤 순서로 → 가로·세로가 고르게 섞인다
+        var opts = [];
+        for (var si = 0; si < sizes.length; si++) {
+          opts.push({ dir: 'h', k: sizes[si] });
+          opts.push({ dir: 'v', k: sizes[si] });
         }
-        return null;
+        shuffle(opts);
+        for (var o = 0; o < opts.length; o++) {
+          var k = opts[o].k, dir = opts[o].dir, cells = [], ok = true;
+          for (var m = 0; m < k; m++) {
+            var rr = dir === 'v' ? r + m : r;
+            var cc = dir === 'h' ? c + m : c;
+            if (rr >= rows || cc >= cols) { ok = false; break; }
+            var idx = rr * cols + cc;
+            if (occ[idx]) { ok = false; break; }
+            cells.push(idx);
+          }
+          if (!ok) continue;
+          for (var p = 0; p < cells.length; p++) occ[cells[p]] = true;
+          placements.push(cells);
+          if (solve()) return true;
+          placements.pop();
+          for (var q = 0; q < cells.length; q++) occ[cells[q]] = false;
+          start = savedStart; // 백트래킹 시 탐색 힌트 복원
+        }
+        return false;
       }
-      return build(L) || [L];
+      return solve() ? placements : null;
     }
 
-    for (var r = 0; r < rows; r++) {
-      var seg = partition(cols);
-      var c = 0;
-      for (var si = 0; si < seg.length; si++) {
-        var k = seg[si];
-        var parts = shuffle(compose(k));
-        for (var m = 0; m < k; m++) { vals[self.idx(r, c)] = parts[m]; c++; }
+    // 가로 전용 폴백 타일링: 폭이 sizes 로 분할 가능하므로 항상 성공한다.
+    function horizontalFallback() {
+      function partition(L) {
+        function build(rem) {
+          if (rem === 0) return [];
+          var order = shuffle(sizes.slice());
+          for (var i = 0; i < order.length; i++) {
+            var s = order[i];
+            if (s <= rem) { var rest = build(rem - s); if (rest) return [s].concat(rest); }
+          }
+          return null;
+        }
+        return build(L) || [L];
       }
+      var out = [];
+      for (var r = 0; r < rows; r++) {
+        var seg = partition(cols), c = 0;
+        for (var si = 0; si < seg.length; si++) {
+          var k = seg[si], cells = [];
+          for (var m = 0; m < k; m++) { cells.push(r * cols + c); c++; }
+          out.push(cells);
+        }
+      }
+      return out;
     }
+
+    var placements = null;
+    for (var attempt = 0; attempt < 8 && !placements; attempt++) placements = tile();
+    if (!placements) placements = horizontalFallback();
+
+    placements.forEach(function (cells) {
+      var parts = shuffle(compose(cells.length));
+      for (var m = 0; m < cells.length; m++) vals[cells[m]] = parts[m];
+    });
     return vals;
   };
 
